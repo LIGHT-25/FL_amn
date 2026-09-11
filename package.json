@@ -1,0 +1,19 @@
+{
+  "name": "flowforge",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "pnpm --filter @flowforge/db migrate",
+    "db:seed": "pnpm --filter @flowforge/db seed",
+    "db:generate": "pnpm --filter @flowforge/db generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.2"
+  }
+}

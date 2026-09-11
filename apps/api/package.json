@@ -1,0 +1,28 @@
+{
+  "name": "@flowforge/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "echo \"lint pending\""
+  },
+  "dependencies": {
+    "@flowforge/db": "workspace:*",
+    "@flowforge/engine": "workspace:*",
+    "@flowforge/nodes": "workspace:*",
+    "@flowforge/shared": "workspace:*",
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

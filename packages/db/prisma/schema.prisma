@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum ExecutionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum NodeExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum TriggerType {
+  MANUAL
+  WEBHOOK
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  displayName  String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  workflows    Workflow[]
+  credentials  Credential[]
+  executions   Execution[]
+  auditEvents  AuditEvent[]
+}
+
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash         String
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  userAgent         String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Workflow {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  status          WorkflowStatus @default(DRAFT)
+  graphVersion    Int            @default(1)
+  graphJson       Json
+  webhookPath     String?        @unique
+  lastActivatedAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  executions      Execution[]
+
+  @@index([userId])
+}
+
+model Credential {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  type              String
+  encryptedData     Bytes
+  iv                Bytes
+  authTag           Bytes
+  encryptionVersion Int       @default(1)
+  lastTestedAt      DateTime?
+  lastTestStatus    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Execution {
+  id               String          @id @default(uuid())
+  workflowId       String
+  workflow         Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  triggerType      TriggerType
+  status           ExecutionStatus @default(QUEUED)
+  workflowSnapshot Json
+  triggerData      Json?
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  durationMs       Int?
+  errorCode        String?
+  errorMessage     String?
+  queueJobId       String?
+  createdAt        DateTime        @default(now())
+  nodeExecutions   NodeExecution[]
+
+  @@index([workflowId])
+  @@index([userId])
+  @@index([status])
+}
+
+model NodeExecution {
+  id           String              @id @default(uuid())
+  executionId  String
+  execution    Execution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  nodeId       String
+  nodeType     String
+  status       NodeExecutionStatus @default(PENDING)
+  inputData    Json?
+  outputData   Json?
+  logs         Json?
+  errorCode    String?
+  errorMessage String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  durationMs   Int?
+  sequence     Int
+
+  @@index([executionId])
+}
+
+model AuditEvent {
+  id           String   @id @default(uuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
