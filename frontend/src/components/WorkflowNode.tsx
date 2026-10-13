@@ -13,21 +13,23 @@ function WorkflowNode({ data, selected }: NodeProps<WorkflowNodeType>) {
   const isTrigger = def?.kind === 'trigger'
 
   return (
-    <div className={`wf-node ${selected ? 'selected' : ''}`} style={{ '--accent': color } as CSSProperties}>
+    <div className={`wf-node${selected ? ' selected' : ''}`} style={{ '--accent': color } as CSSProperties}>
       {!isTrigger && <Handle type="target" position={Position.Left} className="wf-handle" />}
 
-      <div className="wf-node-icon">
+      <span className="wf-node-icon">
         <Icon size={20} />
-      </div>
+      </span>
       <div className="wf-node-body">
-        <div className="wf-node-title">{data.label}</div>
+        <div className="wf-node-top">
+          <span className="wf-node-title">{data.label}</span>
+          {missing.length > 0 && (
+            <span className="wf-node-warn" title={`Missing: ${missing.join(', ')}`}>
+              <AlertCircle size={13} />
+            </span>
+          )}
+        </div>
         <div className="wf-node-sub">{def ? def.label : data.pluginType}</div>
       </div>
-      {missing.length > 0 && (
-        <span className="wf-node-warn" title={`Missing: ${missing.join(', ')}`}>
-          <AlertCircle size={14} />
-        </span>
-      )}
       {isTrigger && <span className="wf-node-badge">Trigger</span>}
 
       {outputs.map((o, i) => {

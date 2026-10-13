@@ -67,7 +67,10 @@ function FieldInput({ field, value, onChange }: { field: PluginField; value: unk
 
 export default function ConfigPanel() {
   const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
-  const node = useWorkflowStore((s) => s.nodes.find((n) => n.id === s.selectedNodeId))
+  const node = useWorkflowStore((s) => {
+    if (!s.currentId || !s.selectedNodeId) return undefined
+    return s.canvases[s.currentId]?.nodes.find((n) => n.id === s.selectedNodeId)
+  })
   const { updateNode, deleteNode, duplicateNode, selectNode } = useWorkflowStore.getState()
 
   if (!selectedNodeId || !node) return null
