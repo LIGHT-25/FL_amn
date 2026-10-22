@@ -27,60 +27,174 @@ export interface WorkflowFile {
   edges: Edge[]
 }
 
-interface WorkflowState {
-  name: string
+export interface CanvasSnapshot {
   nodes: WorkflowNode[]
   edges: Edge[]
+}
+
+const emptyCanvas = (): CanvasSnapshot => ({ nodes: [], edges: [] })
+
+// Stable empty refs: selectors must return cached values, never fresh
+// literals, or concurrent renders can commit torn UI (nodes without edges).
+const EMPTY_NODES: WorkflowNode[] = []
+const EMPTY_EDGES: Edge[] = []
+
+export const selectNodes = (s: WorkflowState): WorkflowNode[] =>
+  s.currentId ? (s.canvases[s.currentId]?.nodes ?? EMPTY_NODES) : EMPTY_NODES
+
+export const selectEdges = (s: WorkflowState): Edge[] =>
+  s.currentId ? (s.canvases[s.currentId]?.edges ?? EMPTY_EDGES) : EMPTY_EDGES
+
+interface WorkflowState {
+  currentId: string | null
+  canvases: Record<string, CanvasSnapshot>
   selectedNodeId: string | null
-  setName: (name: string) => void
+  openWorkflow: (id: string) => void
+  seedCanvas: (id: string, snapshot: CanvasSnapshot) => void
+  dropCanvas: (id: string) => void
+  duplicateCanvas: (srcId: string, destId: string) => void
   onNodesChange: (changes: NodeChange<WorkflowNode>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
   onConnect: (connection: Connection) => void
+  reconnectEdge: (oldEdge: Edge, connection: Connection) => void
   addNode: (pluginType: string, position: XYPosition) => string | null
   updateNode: (id: string, patch: Partial<Pick<WorkflowNodeData, 'label' | 'config'>>) => void
   deleteNode: (id: string) => void
   duplicateNode: (id: string) => void
   selectNode: (id: string | null) => void
-  load: (file: WorkflowFile) => void
+  load: (snapshot: CanvasSnapshot) => void
   clear: () => void
 }
 
 const newId = () => crypto.randomUUID().slice(0, 8)
 
+function currentNodes(get: () => WorkflowState): WorkflowNode[] {
+  const { currentId, canvases } = get()
+  return currentId ? (canvases[currentId]?.nodes ?? []) : []
+}
+
+function withCanvas(
+  set: (fn: (s: WorkflowState) => Partial<WorkflowState>) => void,
+  get: () => WorkflowState,
+  fn: (canvas: CanvasSnapshot) => CanvasSnapshot,
+): void {
+  const { currentId, canvases } = get()
+  if (!currentId) return
+  const next = fn(canvases[currentId] ?? emptyCanvas())
+  set(() => ({ canvases: { ...canvases, [currentId]: next } }))
+}
+
+function withNodes(
+  set: (fn: (s: WorkflowState) => Partial<WorkflowState>) => void,
+  get: () => WorkflowState,
+  fn: (nodes: WorkflowNode[]) => WorkflowNode[],
+): void {
+  withCanvas(set, get, (c) => ({ ...c, nodes: fn(c.nodes) }))
+}
+
 export const useWorkflowStore = create<WorkflowState>()(
   persist(
     (set, get) => ({
-      name: 'Untitled workflow',
-      nodes: [],
-      edges: [],
+      currentId: null,
+      canvases: {},
       selectedNodeId: null,
 
-      setName: (name) => set({ name }),
+      openWorkflow: (id) =>
+        set((s) => ({
+          currentId: id,
+          canvases: s.canvases[id] ? s.canvases : { ...s.canvases, [id]: emptyCanvas() },
+          selectedNodeId: null,
+        })),
+
+      seedCanvas: (id, snapshot) =>
+        set((s) => ({ canvases: { ...s.canvases, [id]: snapshot } })),
+
+      dropCanvas: (id) =>
+        set((s) => {
+          const canvases = { ...s.canvases }
+          delete canvases[id]
+          return { canvases, currentId: s.currentId === id ? null : s.currentId };
+        }),
+
+      duplicateCanvas: (srcId, destId) =>
+        set((s) => {
+          const src = s.canvases[srcId]
+          if (!src) return {}
+          return { canvases: { ...s.canvases, [destId]: structuredClone(src) } };
+        }),
 
       onNodesChange: (changes) => {
         const removed = changes.filter((c) => c.type === 'remove').map((c) => c.id)
-        set((s) => ({
-          nodes: applyNodeChanges(changes, s.nodes),
-          selectedNodeId: s.selectedNodeId && removed.includes(s.selectedNodeId) ? null : s.selectedNodeId,
-        }))
+        withNodes(set, get, (nodes) => applyNodeChanges(changes, nodes))
+        if (removed.length) {
+          const { selectedNodeId } = get()
+          if (selectedNodeId && removed.includes(selectedNodeId)) set({ selectedNodeId: null })
+        }
       },
 
-      onEdgesChange: (changes) => set((s) => ({ edges: applyEdgeChanges(changes, s.edges) })),
+      onEdgesChange: (changes) =>
+        withCanvas(set, get, (c) => ({ ...c, edges: applyEdgeChanges(changes, c.edges) })),
 
       onConnect: (connection) =>
-        set((s) => {
+        withCanvas(set, get, (c) => {
           // An output handle feeds exactly one downstream step; reconnecting replaces the old edge.
-          const edges = s.edges.filter(
+          const edges = c.edges.filter(
             (e) => !(e.source === connection.source && (e.sourceHandle ?? null) === (connection.sourceHandle ?? null)),
           )
-          return { edges: addEdge({ ...connection, id: `e-${newId()}`, animated: true }, edges) }
+          const colorOf = (id: string | null | undefined) =>
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+          return {
+            ...c,
+            edges: addEdge(
+              {
+                ...connection,
+                id: `e-${newId()}`,
+                animated: true,
+                reconnectable: true,
+                data: {
+                  sourceColor: colorOf(connection.source),
+                  targetColor: colorOf(connection.target),
+                },
+              },
+              edges,
+            ),
+          };
+        }),
+
+      reconnectEdge: (oldEdge, connection) =>
+        withCanvas(set, get, (c) => {
+          const source = connection.source ?? oldEdge.source
+          const target = connection.target ?? oldEdge.target
+          const colorOf = (id: string) =>
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+          // Keep the single-output rule: drop other edges from the same handle.
+          const edges = c.edges.filter(
+            (e) =>
+              e.id === oldEdge.id ||
+              !(e.source === source && (e.sourceHandle ?? null) === (connection.sourceHandle ?? null)),
+          )
+          return {
+            ...c,
+            edges: edges.map((e) =>
+              e.id === oldEdge.id
+                ? {
+                    ...e,
+                    source,
+                    target,
+                    sourceHandle: connection.sourceHandle ?? undefined,
+                    targetHandle: connection.targetHandle ?? undefined,
+                    data: { sourceColor: colorOf(source), targetColor: colorOf(target) },
+                  }
+                : e,
+            ),
+          };
         }),
 
       addNode: (pluginType, position) => {
         const def = pluginMap[pluginType]
         if (!def) return null
-        if (def.kind === 'trigger' && get().nodes.some((n) => pluginMap[n.data.pluginType]?.kind === 'trigger')) {
-          alert('A workflow can only have one trigger. Delete the existing trigger first.')
+        const nodes = currentNodes(get)
+        if (def.kind === 'trigger' && nodes.some((n) => pluginMap[n.data.pluginType]?.kind === 'trigger')) {
           return null
         }
         const id = newId()
@@ -90,24 +204,24 @@ export const useWorkflowStore = create<WorkflowState>()(
           position,
           data: { pluginType, label: def.label, config: defaultConfig(def) },
         }
-        set((s) => ({ nodes: [...s.nodes, node], selectedNodeId: id }))
+        withNodes(set, get, (ns) => [...ns, node])
+        set({ selectedNodeId: id })
         return id
       },
 
       updateNode: (id, patch) =>
-        set((s) => ({
-          nodes: s.nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
-        })),
+        withNodes(set, get, (nodes) =>
+          nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
+        ),
 
       deleteNode: (id) =>
-        set((s) => ({
-          nodes: s.nodes.filter((n) => n.id !== id),
-          edges: s.edges.filter((e) => e.source !== id && e.target !== id),
-          selectedNodeId: s.selectedNodeId === id ? null : s.selectedNodeId,
+        withCanvas(set, get, (c) => ({
+          nodes: c.nodes.filter((n) => n.id !== id),
+          edges: c.edges.filter((e) => e.source !== id && e.target !== id),
         })),
 
       duplicateNode: (id) => {
-        const src = get().nodes.find((n) => n.id === id)
+        const src = currentNodes(get).find((n) => n.id === id)
         if (!src || pluginMap[src.data.pluginType]?.kind === 'trigger') return
         const copy: WorkflowNode = {
           ...src,
@@ -116,18 +230,24 @@ export const useWorkflowStore = create<WorkflowState>()(
           position: { x: src.position.x + 40, y: src.position.y + 40 },
           data: { ...src.data, config: structuredClone(src.data.config) },
         }
-        set((s) => ({ nodes: [...s.nodes, copy], selectedNodeId: copy.id }))
+        withNodes(set, get, (ns) => [...ns, copy])
+        set({ selectedNodeId: copy.id })
       },
 
       selectNode: (id) => set({ selectedNodeId: id }),
 
-      load: (file) => set({ name: file.name, nodes: file.nodes, edges: file.edges, selectedNodeId: null }),
+      load: (snapshot) =>
+        withCanvas(set, get, (c) => ({
+          ...c,
+          nodes: snapshot.nodes,
+          edges: snapshot.edges,
+        })),
 
-      clear: () => set({ nodes: [], edges: [], selectedNodeId: null }),
+      clear: () => withCanvas(set, get, (c) => ({ ...c, nodes: [], edges: [] })),
     }),
     {
-      name: 'workflow-editor',
-      partialize: (s) => ({ name: s.name, nodes: s.nodes, edges: s.edges }),
+      name: 'flowforge-canvases-v1',
+      partialize: (s) => ({ canvases: s.canvases }),
     },
   ),
 )
