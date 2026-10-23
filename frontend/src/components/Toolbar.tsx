@@ -1,31 +1,125 @@
-import { ArrowLeft, Download, Eraser, Play, Upload } from 'lucide-react'
-import { useRef } from 'react'
+import { ArrowLeft, Check, Download, Eraser, Play, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useRenameWorkflow, useWorkflow } from '../api/query'
 import { alertDialog, confirmDialog } from '../dialog/api'
 import { missingRequired, pluginMap } from '../plugins/registry'
 import { useWorkflowStore, type WorkflowFile } from '../store/workflowStore'
 
+/**
+ * The toolbar name field is its own source of truth while the user types.
+ * `draft === null` echoes the server value; once the user types, the draft
+ * wins. Keyed by workflow id so switching workflows echoes the new name —
+ * no sync effects, so no refetch can snap the input back mid-word.
+ */
+function NameField({ id, serverName, inputRef }: { id: string; serverName: string; inputRef: React.RefObject<HTMLInputElement | null> }) {
+  const rename = useRenameWorkflow()
+  const [draft, setDraft] = useState<string | null>(null)
+  const [status, setStatus] = useState<'saving' | 'saved' | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latest = useRef({ id, serverName, draft, mutate: rename.mutate })
+  const value = draft ?? serverName
+
+  useEffect(() => {
+    // Snapshot of committed/draft state so the unmount flush can decide
+    // whether a final keystroke batch (composed during the debounce) is
+    // still unsaved.
+    latest.current = { id, serverName, draft, mutate: rename.mutate }
+  }, [id, serverName, draft, rename])
+
+  useEffect(() => {
+    return () => {
+      // Flush an unsaved name on unmount: real clicks blur first (committing
+      // via onBlur), but keyboard navigation can unmount without any blur.
+      const l = latest.current
+      if (l.draft !== null && l.draft !== l.serverName) {
+        if (timer.current) clearTimeout(timer.current)
+        l.mutate({ id: l.id, name: l.draft })
+      }
+      if (resetTimer.current) clearTimeout(resetTimer.current)
+    }
+  }, [])
+
+  const markSaved = () => {
+    setStatus('saved')
+    if (resetTimer.current) clearTimeout(resetTimer.current)
+    resetTimer.current = setTimeout(() => setStatus(null), 1100)
+  }
+
+  const commit = (next: string) => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+    if (next !== serverName) {
+      setStatus('saving')
+      rename.mutate({ id, name: next }, { onSuccess: markSaved })
+    }
+  }
+
+  const saveSoon = (next: string) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      timer.current = null
+      if (next !== serverName) {
+        setStatus('saving')
+        rename.mutate({ id, name: next }, { onSuccess: markSaved })
+      }
+    }, 350)
+  }
+
+  return (
+    <span className="wf-name-wrap">
+      <input
+        ref={inputRef}
+        className={status === 'saved' ? 'wf-name is-saved' : 'wf-name'}
+        value={value}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          saveSoon(e.target.value)
+        }}
+        onBlur={() => draft !== null && commit(draft)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+        }}
+        placeholder="Untitled workflow"
+      />
+      {status !== null && (
+        <span className={`wf-name-status ${status}`} aria-live="polite">
+          {status === 'saved' ? <Check size={12} /> : null}
+          {status === 'saved' ? 'Saved' : 'Saving\u2026'}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export default function Toolbar() {
   const navigate = useNavigate()
   const { workflowId } = useParams()
   const { data: workflow } = useWorkflow(workflowId)
-  const rename = useRenameWorkflow()
   const canvas = useWorkflowStore((s) => (workflowId ? s.canvases[workflowId] : undefined))
   const { load, clear } = useWorkflowStore.getState()
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const name = workflow?.name ?? 'Untitled workflow'
+  const rename = useRenameWorkflow()
+
   const nodes = canvas?.nodes ?? []
   const edges = canvas?.edges ?? []
   const nodeCount = nodes.length
 
   const exportJson = () => {
-    const file: WorkflowFile = { name, nodes, edges }
+    // The live field value wins (blur commits before click, but the query
+    // cache may lag the rename by a tick).
+    const liveName = (nameInputRef.current?.value.trim() || name)
+    const file: WorkflowFile = { name: liveName, nodes, edges }
     const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `${name.replace(/\s+/g, '-').toLowerCase() || 'workflow'}.json`
+    a.download = `${liveName.replace(/\s+/g, '-').toLowerCase() || 'workflow'}.json`
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -85,12 +179,11 @@ export default function Toolbar() {
         <button onClick={() => navigate('/app')} title="Back to automations">
           <ArrowLeft size={14} /> Flows
         </button>
-        <input
-          className="wf-name"
-          value={workflow?.name ?? ''}
-          onChange={(e) => workflowId && rename.mutate({ id: workflowId, name: e.target.value })}
-          placeholder="Untitled workflow"
-        />
+        {workflowId ? (
+          <NameField key={workflowId} id={workflowId} serverName={workflow?.name ?? ''} inputRef={nameInputRef} />
+        ) : (
+          <input className="wf-name" value="" placeholder="Untitled workflow" readOnly />
+        )}
       </div>
       <div className="toolbar-actions">
         <button onClick={() => fileRef.current?.click()} title="Import JSON">

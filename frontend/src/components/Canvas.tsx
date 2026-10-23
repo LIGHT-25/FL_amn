@@ -2,8 +2,8 @@ import {
   Background,
   BackgroundVariant,
   ConnectionLineType,
-  Controls,
   MiniMap,
+  Panel,
   ReactFlow,
   useReactFlow,
   useStore,
@@ -11,7 +11,7 @@ import {
   type Connection,
   type Edge,
 } from '@xyflow/react'
-import { MousePointer2, Plus } from 'lucide-react'
+import { Map as MapIcon, Maximize, MousePointer2, Plus, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { alertDialog } from '../dialog/api'
 import { pluginMap } from '../plugins/registry'
@@ -48,8 +48,10 @@ export default function Canvas() {
   const edges = useWorkflowStore(selectEdges)
   const onReconnect = useWorkflowStore((s) => s.reconnectEdge)
   const { onNodesChange, onEdgesChange, onConnect, selectNode } = useWorkflowStore.getState()
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, zoomIn, zoomOut, zoomTo, fitView } = useReactFlow()
+  const zoom = useStore((s) => Math.round(s.transform[2] * 100))
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [mapOpen, setMapOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   const pickNode = (pluginType: string) => {
@@ -64,6 +66,14 @@ export default function Canvas() {
       if (nodes.some((n) => pluginMap[n.data.pluginType]?.kind === 'trigger')) {
         setPickerOpen(false)
         alertDialog({ title: 'Only one trigger per workflow', body: 'Delete the existing trigger first.' })
+        return
+      }
+    }
+    if (def.kind === 'end') {
+      const nodes = st.currentId ? (st.canvases[st.currentId]?.nodes ?? []) : []
+      if (nodes.some((n) => n.data.pluginType === 'core.end')) {
+        setPickerOpen(false)
+        alertDialog({ title: 'Only one end node', body: 'Delete the existing End first.' })
         return
       }
     }
@@ -123,9 +133,40 @@ export default function Canvas() {
         fitViewOptions={{ maxZoom: 1 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#2e2e36" />
-        <Controls position="top-left" />
-        <MiniMap position="bottom-left" pannable zoomable maskColor="rgba(9, 9, 11, 0.8)" nodeColor={(n) => pluginMap[(n as WorkflowNodeType).data.pluginType]?.color ?? '#71717a'} />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={2} color="#4a4a55" />
+        {mapOpen && (
+          <MiniMap
+            position="bottom-center"
+            pannable
+            zoomable
+            maskColor="rgba(9, 9, 11, 0.8)"
+            nodeColor={(n) => pluginMap[(n as WorkflowNodeType).data.pluginType]?.color ?? '#71717a'}
+            className="canvas-minimap"
+          />
+        )}
+        <Panel position="bottom-center" className="canvas-controls">
+          <button onClick={() => zoomOut()} title="Zoom out">
+            <ZoomOut size={15} />
+          </button>
+          <span className="canvas-controls-zoom" onClick={() => zoomTo(1)} title="Reset to 100%">
+            {zoom}%
+          </span>
+          <button onClick={() => zoomIn()} title="Zoom in">
+            <ZoomIn size={15} />
+          </button>
+          <i className="canvas-controls-sep" />
+          <button onClick={() => fitView({ duration: 300, maxZoom: 1 })} title="Fit view">
+            <Maximize size={15} />
+          </button>
+          <i className="canvas-controls-sep" />
+          <button
+            className={mapOpen ? 'is-active' : undefined}
+            onClick={() => setMapOpen((o) => !o)}
+            title={mapOpen ? 'Hide minimap' : 'Show minimap'}
+          >
+            <MapIcon size={15} />
+          </button>
+        </Panel>
         <MeasureNodes />
       </ReactFlow>
 

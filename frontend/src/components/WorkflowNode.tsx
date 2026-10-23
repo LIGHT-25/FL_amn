@@ -11,6 +11,7 @@ function WorkflowNode({ data, selected }: NodeProps<WorkflowNodeType>) {
   const outputs = def?.outputs ?? [{ id: 'out' }]
   const missing = def ? missingRequired(def, data.config) : []
   const isTrigger = def?.kind === 'trigger'
+  const isEnd = def?.kind === 'end'
 
   return (
     <div className={`wf-node${selected ? ' selected' : ''}`} style={{ '--accent': color } as CSSProperties}>
@@ -30,7 +31,7 @@ function WorkflowNode({ data, selected }: NodeProps<WorkflowNodeType>) {
         </div>
         <div className="wf-node-sub">{def ? def.label : data.pluginType}</div>
       </div>
-      {isTrigger && <span className="wf-node-badge">Trigger</span>}
+      {(isTrigger || isEnd) && <span className="wf-node-badge">{isTrigger ? 'Trigger' : 'End'}</span>}
 
       {outputs.map((o, i) => {
         const top = `${((i + 1) / (outputs.length + 1)) * 100}%`

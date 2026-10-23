@@ -42,6 +42,23 @@ export function buildTemplateCanvas(tpl: AutomationTemplate): CanvasSnapshot {
     position: { x: n.x, y: n.y },
     data: { pluginType: n.pluginType, label: n.label, config: { ...n.config } },
   }));
+  const singleOut = (idx: number) => pluginMap[tpl.nodes[idx].pluginType]?.outputs.length === 1;
+  // Every template terminates at an End node: wire each single-output node
+  // that has no downstream step into it.
+  const routed = new Set(tpl.edges.map((e) => e.from));
+  const sinks = tpl.nodes
+    .map((_, i) => i)
+    .filter((i) => !routed.has(i) && singleOut(i));
+  const endNode: WorkflowNode = {
+    id: newId(),
+    type: 'workflow',
+    position: {
+      x: Math.max(...sinks.map((i) => tpl.nodes[i].x)) + 340,
+      y: sinks.length ? tpl.nodes[sinks[0]].y : 0,
+    },
+    data: { pluginType: 'core.end', label: 'End', config: {} },
+  };
+  nodes.push(endNode);
   const edges: Edge[] = tpl.edges.map((e) => ({
     id: `e-${newId()}`,
     source: ids[e.from],
@@ -54,6 +71,21 @@ export function buildTemplateCanvas(tpl: AutomationTemplate): CanvasSnapshot {
       targetColor: pluginMap[tpl.nodes[e.to].pluginType]?.color ?? '#71717a',
     },
   }));
+  for (const s of sinks) {
+    edges.push({
+      id: `e-${newId()}`,
+      source: ids[s],
+      sourceHandle: pluginMap[tpl.nodes[s].pluginType]?.outputs[0]?.id ?? 'out',
+      target: endNode.id,
+      targetHandle: null,
+      animated: true,
+      reconnectable: true,
+      data: {
+        sourceColor: pluginMap[tpl.nodes[s].pluginType]?.color ?? '#71717a',
+        targetColor: pluginMap['core.end']?.color ?? '#a1a1aa',
+      },
+    });
+  }
   return { nodes, edges };
 }
 
