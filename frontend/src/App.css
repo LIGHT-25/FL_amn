@@ -284,7 +284,12 @@
   gap: 2px;
   padding: 0 10px;
   border-bottom: 1px solid var(--ff-border);
-  overflow-x: auto;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.node-picker-tabs::-webkit-scrollbar {
+  display: none; /* Hide horizontal scrollbar in Chromium/Safari */
 }
 
 .app .node-picker-tab {
@@ -317,6 +322,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 6px 14px 14px;
 }
 
@@ -376,11 +382,12 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 4px 6px 10px;
 }
 
 .node-picker-flat {
-  padding: 8px 8px 10px;
+  padding: 0;
 }
 
 .node-picker-empty {

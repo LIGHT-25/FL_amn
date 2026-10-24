@@ -262,7 +262,7 @@ export default function NodePicker({ onPick, onClose }: { onPick: (pluginType: s
                 )}
 
                 {tab === 'utility' && (
-                  <div className="node-picker-list node-picker-flat">
+                  <div className="node-picker-flat">
                     {FRAMEWORK.map((p) => (
                       <StepRow key={p.type} p={p} showServiceLogo onPick={pick} />
                     ))}
