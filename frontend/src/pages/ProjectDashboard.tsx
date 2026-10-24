@@ -42,6 +42,8 @@ import {
 } from '../api/query';
 import type { WorkflowNode } from '../store/workflowStore';
 import { useWorkflowStore } from '../store/workflowStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import './dashboard.css';
 
 type TabId = 'automations' | 'runs' | 'connections' | 'variables';
@@ -194,9 +196,14 @@ function AutomationsPanel() {
   return (
     <>
       <div className="ff-toolbar">
-        <div className="ff-search">
-          <Search size={15} />
-          <input placeholder="Search flows, tables and agents…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <div className="relative flex items-center min-w-[280px]">
+          <Search size={15} className="absolute left-3 text-zinc-500 pointer-events-none" />
+          <Input
+            placeholder="Search flows, tables and agents…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9 h-9 bg-zinc-900/80 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-cyan-400"
+          />
         </div>
         <select className="ff-chip" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as 'all' | TriggerKind)} title="Filter by trigger type">
           <option value="all">Type</option>
@@ -210,12 +217,24 @@ function AutomationsPanel() {
           <option value="inactive">Inactive</option>
         </select>
         <span className="ff-toolbar-spacer" />
-        <button className="ff-btn" onClick={() => fileRef.current?.click()} title="Import JSON">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+          title="Import JSON"
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-9 gap-1.5"
+        >
           <Download size={15} /> Import
-        </button>
-        <button className="ff-btn ff-btn-primary" onClick={onCreate} disabled={create.isPending}>
+        </Button>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={onCreate}
+          disabled={create.isPending}
+          className="bg-cyan-400 text-zinc-950 hover:bg-cyan-300 font-semibold shadow-sm h-9 gap-1.5"
+        >
           <Plus size={15} /> Create New
-        </button>
+        </Button>
         <input
           ref={fileRef}
           type="file"
@@ -387,9 +406,14 @@ export default function ProjectDashboard() {
       <div className="ff-proj-head">
         <h1>Personal Project <Lock size={15} /></h1>
         <span className="ff-proj-spacer" />
-        <button className="ff-btn" title="Team invites arrive with the auth backend">
+        <Button
+          variant="outline"
+          size="sm"
+          title="Team invites arrive with the auth backend"
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-9 gap-1.5"
+        >
           <UserPlus size={15} /> Add Members
-        </button>
+        </Button>
         <button className="ff-head-btn-dark" title="Project settings (coming soon)"><MoreHorizontal size={16} /></button>
       </div>
 

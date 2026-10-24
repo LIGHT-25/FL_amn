@@ -1,5 +1,4 @@
-import { X } from 'lucide-react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import {
   confirmPrompt,
   dismissDialog,
@@ -8,24 +7,23 @@ import {
   subscribeDialogs,
   type PendingDialog,
 } from './api';
-import './dialog.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 function DialogCard({ dialog }: { dialog: PendingDialog }) {
   const [draft, setDraft] = useState(dialog.inputValue);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismissDialog(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   const danger = dialog.kind === 'confirm' && dialog.tone === 'danger';
   const isPrompt = dialog.kind === 'prompt';
   const promptValid = draft.trim() !== '';
-  // Destructive confirms focus the safe option so Enter can't misfire.
-  const focusCancel = danger;
 
   const submit = () => {
     if (isPrompt) {
@@ -36,44 +34,51 @@ function DialogCard({ dialog }: { dialog: PendingDialog }) {
   };
 
   return (
-    <div
-      className="ff-dialog-overlay"
-      onMouseDown={(e) => e.target === e.currentTarget && dismissDialog(false)}
-    >
-      <div className="ff-dialog" role="alertdialog" aria-label={dialog.title}>
-        <button className="ff-dlg-x" onClick={() => dismissDialog(false)} aria-label="Close">
-          <X size={16} />
-        </button>
-        <h2>{dialog.title}</h2>
-        {dialog.body && <p>{dialog.body}</p>}
+    <Dialog open={true} onOpenChange={(open) => !open && dismissDialog(false)}>
+      <DialogContent className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl">
+        <DialogHeader className="space-y-2">
+          <DialogTitle className="text-lg font-semibold tracking-tight text-zinc-100">
+            {dialog.title}
+          </DialogTitle>
+          {dialog.body && (
+            <DialogDescription className="text-sm text-zinc-400">
+              {dialog.body}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
         {isPrompt && (
-          <div className="ff-dialog-input">
-            <input
+          <div className="py-2">
+            <Input
               value={draft}
               autoFocus
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               aria-label={dialog.title}
+              className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-cyan-400"
             />
           </div>
         )}
-        <div className="ff-dialog-actions">
+
+        <DialogFooter className="mt-4 gap-2 sm:gap-2">
           {dialog.kind !== 'alert' && (
-            <button className="ff-dlg-btn" autoFocus={focusCancel} onClick={() => dismissDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => dismissDialog(false)}
+            >
               {dialog.cancelLabel}
-            </button>
+            </Button>
           )}
-          <button
-            className={danger ? 'ff-dlg-btn ff-dlg-danger' : 'ff-dlg-btn ff-dlg-primary'}
-            autoFocus={!focusCancel && !isPrompt}
+          <Button
+            variant={danger ? 'destructive' : 'default'}
             disabled={isPrompt && !promptValid}
             onClick={submit}
           >
             {dialog.confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

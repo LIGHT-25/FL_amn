@@ -5,6 +5,7 @@ import { useRenameWorkflow, useWorkflow } from '../api/query'
 import { alertDialog, confirmDialog } from '../dialog/api'
 import { missingRequired, pluginMap } from '../plugins/registry'
 import { useWorkflowStore, type WorkflowFile } from '../store/workflowStore'
+import { Button } from '@/components/ui/button'
 
 /**
  * The toolbar name field is its own source of truth while the user types.
@@ -176,9 +177,15 @@ export default function Toolbar() {
   return (
     <header className="toolbar">
       <div className="brand">
-        <button onClick={() => navigate('/app')} title="Back to automations">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/app')}
+          title="Back to automations"
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+        >
           <ArrowLeft size={14} /> Flows
-        </button>
+        </Button>
         {workflowId ? (
           <NameField key={workflowId} id={workflowId} serverName={workflow?.name ?? ''} inputRef={nameInputRef} />
         ) : (
@@ -186,18 +193,43 @@ export default function Toolbar() {
         )}
       </div>
       <div className="toolbar-actions">
-        <button onClick={() => fileRef.current?.click()} title="Import JSON">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+          title="Import JSON"
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+        >
           <Upload size={14} /> Import
-        </button>
-        <button onClick={exportJson} disabled={nodeCount === 0} title="Export JSON">
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={exportJson}
+          disabled={nodeCount === 0}
+          title="Export JSON"
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+        >
           <Download size={14} /> Export
-        </button>
-        <button onClick={onClear} disabled={nodeCount === 0}>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onClear}
+          disabled={nodeCount === 0}
+          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 hover:border-red-500/40 hover:text-red-400 h-8 gap-1.5"
+        >
           <Eraser size={14} /> Clear
-        </button>
-        <button className="primary" onClick={validate} disabled={nodeCount === 0}>
+        </Button>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={validate}
+          disabled={nodeCount === 0}
+          className="bg-cyan-400 text-zinc-950 hover:bg-cyan-300 font-semibold shadow-sm h-8 gap-1.5"
+        >
           <Play size={14} /> Test run
-        </button>
+        </Button>
         <input
           ref={fileRef}
           type="file"

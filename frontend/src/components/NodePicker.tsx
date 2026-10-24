@@ -19,6 +19,7 @@ import {
   serviceOf,
   type ServiceInfo,
 } from '../plugins/services'
+import { Badge } from '@/components/ui/badge'
 
 const SERVICES: Array<ServiceInfo & { plugins: PluginDefinition[] }> = (() => {
   const groups = new Map<string, ServiceInfo & { plugins: PluginDefinition[] }>()
@@ -115,7 +116,9 @@ function StepRow({ p, showServiceLogo, onPick }: { p: PluginDefinition; showServ
       <span className="node-picker-text">
         <span className="node-picker-title-row">
           <strong>{p.label}</strong>
-          <em className="node-picker-chip">{chipOf(p)}</em>
+          <Badge variant="secondary" className="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0 h-4 bg-zinc-800 text-zinc-300 border-zinc-700">
+            {chipOf(p)}
+          </Badge>
         </span>
         <small>{p.description}</small>
       </span>
