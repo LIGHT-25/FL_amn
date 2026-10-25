@@ -3,14 +3,100 @@
 // ("Insert row", "Delete row", "Send message"…), mirroring how the picker
 // navbar is organized.
 //
-// Official brand logos come from logo.dev — paste your publishable token
-// (free tier at logo.dev, starts with "pk_…") and every logo lights up.
-// Without a token the UI falls back to letter tiles automatically.
+// Logos come from Brandfetch's Logo CDN, keyed by domain — every branded
+// service below carries one, so the picker and the canvas nodes can show the
+// official mark. Free up to 1M requests/month; services with no bundled mark
+// fall through to the CDN, then to a letter tile. Framework buckets
+// (Triggers, Logic, Core) have no domain, so they fall back to a letter tile.
 
-export const LOGO_DEV_TOKEN = ''
+/** Retina-sized logo URL for a service domain. */
+export const brandfetchUrl = (domain: string, size: number): string => {
+  const px = Math.round(size * 2)
+  return `https://cdn.brandfetch.io/${domain}/w/${px}/h/${px}`
+}
 
-export const logoDevUrl = (domain: string, size: number): string =>
-  `https://img.logo.dev/${domain}?token=${LOGO_DEV_TOKEN}&size=${size * 2}&format=png&retina=true`
+/* ---------- Bundled brand marks ----------
+   Self-hosted SVGs (src/assets/logos) — no network, no rate limits, stable
+   in screenshots and offline demos. Keyed by service key; anything missing
+   falls through to the Brandfetch CDN, then to a letter tile. */
+
+import baserowSvg from '../assets/logos/baserow.svg'
+import chatwootSvg from '../assets/logos/chatwoot.svg'
+import discordSvg from '../assets/logos/discord.svg'
+import facebookSvg from '../assets/logos/facebook.svg'
+import gmailSvg from '../assets/logos/gmail.svg'
+import googlecalendarSvg from '../assets/logos/googlecalendar.svg'
+import googlesheetsSvg from '../assets/logos/googlesheets.svg'
+import googlegeminiSvg from '../assets/logos/googlegemini.svg'
+import instagramSvg from '../assets/logos/instagram.svg'
+import mastodonSvg from '../assets/logos/mastodon.svg'
+import mattermostSvg from '../assets/logos/mattermost.svg'
+import notionSvg from '../assets/logos/notion.svg'
+import ollamaSvg from '../assets/logos/ollama.svg'
+import postgresqlSvg from '../assets/logos/postgresql.svg'
+import telegramSvg from '../assets/logos/telegram.svg'
+import wordpressSvg from '../assets/logos/wordpress.svg'
+import zammadSvg from '../assets/logos/zammad.svg'
+
+export const LOCAL_LOGOS: Record<string, string> = {
+  sheets: googlesheetsSvg,
+  postgres: postgresqlSvg,
+  baserow: baserowSvg,
+  notion: notionSvg,
+  discord: discordSvg,
+  mattermost: mattermostSvg,
+  gmail: gmailSvg,
+  gcal: googlecalendarSvg,
+  chatwoot: chatwootSvg,
+  telegram: telegramSvg,
+  facebook: facebookSvg,
+  instagram: instagramSvg,
+  mastodon: mastodonSvg,
+  wordpress: wordpressSvg,
+  zammad: zammadSvg,
+  ollama: ollamaSvg,
+  gemini: googlegeminiSvg,
+}
+
+/** True when the service can show a real logo (bundled or via its domain). */
+export function hasLogo(service: ServiceInfo): boolean {
+  return Boolean(LOCAL_LOGOS[service.key] || service.domain)
+}
+
+/* ---------- Optical sizing ----------
+   Source artboards differ wildly, so a raw `object-contain` makes some marks
+   touch the tile edge while others sit small and off-weight. Every logo is
+   therefore scaled by a fit factor until its *ink* (the largest dimension of
+   the drawn artwork) covers the same fraction of the tile.
+
+   Measured ink as a fraction of the tile, before fitting:
+   - bundled SVGs ......... 0.95–1.00  → all land on LOGO_FIT below
+   - Brandfetch images ..... 0.76–1.00, and they differ in kind: slack/gmail
+     arrive as a padded white card, espocrm/linkedin/tavily as a solid colour
+     square (which reads heavier, so it is scaled down further).
+   Numbers here are ink_target / ink_measured — tweak a row to retune one
+   mark; nothing else needs to change. */
+
+/** Ink coverage target for bundled marks: 74% of the tile, 13% padding each side. */
+const LOGO_FIT = 0.74
+
+/** Per-domain fit for CDN logos (unlisted domains use this). */
+const DEFAULT_BRANDFETCH_FIT = 0.85
+
+const BRANDFETCH_FIT: Record<string, number> = {
+  'slack.com': 0.97, // padded card, mark already at 0.76
+  'espocrm.com': 0.68, // solid square
+  'linkedin.com': 0.68, // solid square
+  'tavily.com': 0.7, // near-solid square
+  'quickchart.io': 0.83,
+}
+
+/** Fit factor for a service's logo image, or null when there is no logo. */
+export function logoFit(service: ServiceInfo): number | null {
+  if (LOCAL_LOGOS[service.key]) return LOGO_FIT
+  if (!service.domain) return null
+  return BRANDFETCH_FIT[service.domain] ?? DEFAULT_BRANDFETCH_FIT
+}
 
 import type { PluginDefinition } from './registry'
 
@@ -18,7 +104,7 @@ export interface ServiceInfo {
   /** stable key for the navbar */
   key: string
   name: string
-  /** apex or product domain for logo.dev */
+  /** apex or product domain — the logo lookup key */
   domain?: string
   /** group heading inside the service panel */
   useCase: string
@@ -111,12 +197,6 @@ export function serviceOf(p: PluginDefinition): ServiceInfo {
   if (p.kind === 'trigger') return { key: 'triggers', name: 'Triggers', useCase: 'Start a run' }
   if (p.kind === 'logic') return { key: 'logic', name: 'Logic', useCase: 'Branch & flow' }
   return { key: 'core', name: 'Core', useCase: 'Transform' }
-}
-
-/** Step name inside a service panel: "Sheets: Read Rows" → "Read Rows". */
-export function stepDisplayName(p: PluginDefinition): string {
-  const idx = p.label.indexOf(':')
-  return idx === -1 ? p.label : p.label.slice(idx + 1).trim()
 }
 
 /** Navbar order: data first, comms, social, intelligence, then framework buckets. */

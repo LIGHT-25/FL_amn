@@ -1,0 +1,223 @@
+/* ---------- React Flow overrides ----------
+   Imported in App.tsx directly after '@xyflow/react/dist/style.css'
+   so equal-specificity ties resolve in our favour. Everything here is
+   library-level styling (panels, handles, edge paths, keyframes); the
+   workflow card / canvas chrome itself is Tailwind in the components.
+   Palette: acid lime (#a3e635) on warm graphite. */
+
+@keyframes wf-node-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* Marching dashes, used by the live connection preview only — committed
+   edges are deliberately solid with an arrowhead. */
+@keyframes wf-dash-run {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+@keyframes wf-handle-pulse {
+  50% {
+    box-shadow: 0 0 0 9px rgb(163 230 53 / 0.12);
+  }
+}
+
+@keyframes wf-minimap-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px);
+  }
+}
+
+/* ---------- Edges ---------- */
+.react-flow__edge .react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 2.75;
+}
+
+/* Selected: thicker + a soft lime halo instead of a dash animation. */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 2.75;
+  filter: drop-shadow(0 0 5px rgb(163 230 53 / 0.55));
+}
+
+/* Belt-and-braces for edges persisted with `animated: true`: committed
+   edges never dash. */
+.react-flow__edge.animated .react-flow__edge-path,
+.react-flow__edge.animated path.react-flow__edge-path {
+  stroke-dasharray: none;
+  animation: none;
+}
+
+.react-flow__connection-path {
+  stroke-dasharray: 8 6;
+  animation: wf-dash-run 0.5s linear infinite;
+  filter: drop-shadow(0 0 4px rgb(163 230 53 / 0.55));
+}
+
+/* ---------- Handles ---------- */
+/* While a node is being dragged it lifts off the canvas. */
+.react-flow__node.dragging .wf-node {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 0.6);
+  cursor: grabbing;
+}
+
+/* ---------- Handles ----------
+   Quiet ports: small, neutral, slightly recessed. React Flow tags EVERY
+   connectable handle with `.connectionindicator`, so that class must never
+   drive colour — lime is reserved for hover and an in-flight connection.
+   Selectors are doubled (`.react-flow__handle.wf-handle`) to out-spec the
+   library's own !important rules regardless of import order. */
+.react-flow__handle.wf-handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: #1a1a17 !important;
+  border: 1.5px solid #5c5c55 !important;
+  opacity: 0.85;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+/* Fully present once the card is hovered or selected. */
+.react-flow__node:hover .react-flow__handle.wf-handle,
+.react-flow__node.selected .react-flow__handle.wf-handle {
+  opacity: 1;
+  border-color: #86867b !important;
+}
+
+.react-flow__handle.wf-handle:hover {
+  opacity: 1;
+  border-color: #a3e635 !important;
+  box-shadow: 0 0 0 3px rgb(163 230 53 / 0.22);
+}
+
+/* While a connection is being dragged: the origin pulses; candidate targets
+   light up through :hover as the pointer crosses them — no standing glow. */
+.react-flow__handle.wf-handle.connectingfrom {
+  opacity: 1;
+  border-color: #a3e635 !important;
+  box-shadow: 0 0 0 4px rgb(163 230 53 / 0.28);
+  animation: wf-handle-pulse 1s ease-in-out infinite;
+}
+
+.react-flow__handle.wf-handle.connectionindicator {
+  cursor: crosshair;
+}
+
+.wf-handle-label {
+  position: absolute;
+  left: calc(100% + 9px);
+  transform: translateY(-50%);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #1a1a17;
+  border: 1px solid #2b2b26;
+  font-size: 10px;
+  color: #a5a59c;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ---------- Bottom control panel ---------- */
+.react-flow__panel.canvas-controls {
+  bottom: 16px;
+  left: 50%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  transform: translateX(-50%);
+  background: #1a1a17;
+  border: 1px solid #2b2b26;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+  z-index: 10;
+}
+
+.canvas-controls button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #a5a59c;
+  cursor: pointer;
+}
+
+.canvas-controls button:hover:not(:disabled) {
+  background: #2b2b26;
+  color: #f2f2ee;
+}
+
+.canvas-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.canvas-controls button.is-active {
+  background: rgb(163 230 53 / 0.16);
+  color: #a3e635;
+}
+
+/* Lucide icons are stroke-based; don't force a fill. */
+.canvas-controls button svg {
+  stroke: currentColor;
+}
+
+.canvas-controls-zoom {
+  min-width: 44px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #a5a59c;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.canvas-controls-zoom:hover {
+  color: #f2f2ee;
+}
+
+.canvas-controls-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: #2b2b26;
+}
+
+/* ---------- Minimap ---------- */
+.react-flow__panel.canvas-minimap {
+  bottom: 64px;
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  animation: wf-minimap-in 0.16s ease-out;
+}
+
+.react-flow__minimap {
+  background-color: #121211 !important;
+  border: 1px solid #2b2b26;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.react-flow__selection {
+  background: rgb(163 230 53 / 0.1);
+  border: 1px solid #a3e635;
+}

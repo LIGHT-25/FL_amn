@@ -1,33 +1,33 @@
 import { CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import type { ExecutionStatus } from '../api/client';
 import { useExecutions } from '../api/query';
-import './debugging.css';
 
 function StepIcon({ status }: { status: ExecutionStatus }) {
   switch (status) {
     case 'success':
       return (
-        <span className="ff-step-status success">
+        <span className="grid shrink-0 place-items-center text-success">
           <CheckCircle2 size={17} />
         </span>
       );
     case 'failed':
       return (
-        <span className="ff-step-status failed">
+        <span className="grid shrink-0 place-items-center text-danger">
           <XCircle size={17} />
         </span>
       );
     case 'running':
       return (
-        <span className="ff-step-status running">
-          <Loader2 size={17} className="ff-spin" />
+        <span className="grid shrink-0 place-items-center text-brand">
+          <Loader2 size={17} className="animate-spin" />
         </span>
       );
     default:
       return (
-        <span className="ff-step-status waiting">
+        <span className="grid shrink-0 place-items-center text-faint">
           <Clock size={17} />
         </span>
       );
@@ -62,36 +62,47 @@ export default function Debugging() {
   const toggleStep = (id: string) =>
     setOpenSteps((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const status = selected?.status;
+  const pillTone =
+    status === 'success'
+      ? 'bg-success/[0.14] text-success'
+      : status === 'failed'
+        ? 'bg-danger/[0.14] text-danger'
+        : status === 'running'
+          ? 'bg-brand/[0.14] text-brand'
+          : 'bg-muted/[0.14] text-muted';
+
   return (
-    <div className="ff-debug">
-      <div className="ff-debug-head">
+    <div className="max-w-[1000px] px-7 pt-6 pb-10">
+      <div className="flex items-center gap-3">
         <div>
-          <h1>Debugging</h1>
-          <p>Live console for project runs — steps, durations and logs.</p>
+          <h1 className="text-xl font-[650]">Debugging</h1>
+          <p className="mt-1 text-[13.5px] text-muted">Live console for project runs — steps, durations and logs.</p>
         </div>
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
         {anyRunning && (
-          <span className="ff-pill running">
-            <span className="dot" /> LIVE
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/[0.14] px-2.5 py-[3px] text-xs font-medium text-brand">
+            <span className="size-1.5 animate-pulse rounded-full bg-current [animation-duration:1.2s]" /> LIVE
           </span>
         )}
       </div>
 
       {isPending ? (
-        <div className="ff-state">Loading runs…</div>
+        <div className="px-3 py-9 text-center text-sm text-muted">Loading runs…</div>
       ) : executions.length === 0 ? (
-        <div className="ff-empty">
-          <h2>No runs yet</h2>
-          <p>Run an automation and its steps will appear here.</p>
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-[10px] border border-dashed border-line px-5 py-16 text-center text-muted">
+          <h2 className="mt-1.5 text-[17px] text-ink">No runs yet</h2>
+          <p className="m-0 max-w-[420px] text-[13.5px]">Run an automation and its steps will appear here.</p>
         </div>
       ) : (
         selected && (
           <>
-            <div className="ff-run-pick">
+            <div className="my-4 flex items-center gap-2.5">
               <select
                 value={selected.id}
                 onChange={(e) => setSelectedId(e.target.value)}
                 aria-label="Select run"
+                className="flex-1 rounded-[9px] border border-line bg-panel px-3 py-[9px] text-[14px] text-ink outline-none focus:border-brand [&_option]:bg-panel-2"
               >
                 {executions.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -101,33 +112,54 @@ export default function Debugging() {
               </select>
             </div>
 
-            <div className="ff-run-meta">
-              <span className={`ff-pill ${selected.status}`}>
-                <span className="dot" />
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[10px] border border-line bg-panel px-4 py-3 text-[13.5px]">
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-xs font-medium',
+                  pillTone,
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full bg-current',
+                    status === 'running' && 'animate-pulse [animation-duration:1.2s]',
+                  )}
+                />
                 {selected.status === 'success' ? 'Succeeded' : selected.status === 'failed' ? 'Failed' : selected.status === 'running' ? 'Running' : 'Waiting'}
               </span>
               <span>{selected.workflowName}</span>
-              <span className="ff-muted-text">{selected.trigger}</span>
-              <span className="ff-muted-text">{formatDateTime(selected.startedAt)}</span>
-              <span className="ff-muted-text">{formatDuration(selected.durationMs)}</span>
+              <span className="text-muted text-[12.5px]">{selected.trigger}</span>
+              <span className="text-muted text-[12.5px]">{formatDateTime(selected.startedAt)}</span>
+              <span className="text-muted text-[12.5px]">{formatDuration(selected.durationMs)}</span>
             </div>
 
-            {selected.error && <div className="ff-run-error">{selected.error}</div>}
+            {selected.error && (
+              <div className="mt-3 rounded-[10px] border border-red-400/40 bg-red-400/[0.08] px-4 py-3 text-[13.5px] text-danger">
+                {selected.error}
+              </div>
+            )}
 
-            <ol className="ff-steps">
+            <ol className="mt-4 list-none overflow-hidden rounded-xl border border-line bg-panel p-0">
               {selected.steps.map((step, i) => {
                 const open = openSteps.includes(step.id);
                 return (
-                  <li className="ff-step" key={step.id}>
-                    <button className="ff-step-head" onClick={() => toggleStep(step.id)}>
+                  <li className="border-t border-line first:border-t-0" key={step.id}>
+                    <button
+                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left text-sm text-ink hover:bg-panel-2"
+                      onClick={() => toggleStep(step.id)}
+                    >
                       <StepIcon status={step.status} />
-                      <span className="ff-step-name">
+                      <span className="min-w-0 flex-1 truncate">
                         {i + 1}. {step.label}
                       </span>
-                      <span className="ff-step-dur">{formatDuration(step.durationMs)}</span>
+                      <span className="whitespace-nowrap text-[12.5px] text-muted">{formatDuration(step.durationMs)}</span>
                       {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </button>
-                    {open && <pre className="ff-step-log">{step.log}</pre>}
+                    {open && (
+                      <pre className="m-0 pt-3 pr-4 pb-4 pl-11 font-mono text-xs leading-[1.6] break-words whitespace-pre-wrap text-muted">
+                        {step.log}
+                      </pre>
+                    )}
                   </li>
                 );
               })}

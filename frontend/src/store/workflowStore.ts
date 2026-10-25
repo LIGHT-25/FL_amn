@@ -122,7 +122,7 @@ function connectDanglingToEnd(
         animated: true,
         reconnectable: true,
         data: {
-          sourceColor: pluginMap[d.data.pluginType]?.color ?? '#71717a',
+          sourceColor: pluginMap[d.data.pluginType]?.color ?? '#78786e',
           targetColor: endColor,
         },
       })
@@ -205,7 +205,7 @@ export const useWorkflowStore = create<WorkflowState>()(
             (e) => !(e.source === connection.source && (e.sourceHandle ?? null) === (connection.sourceHandle ?? null)),
           )
           const colorOf = (id: string | null | undefined) =>
-            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#78786e'
           return {
             ...c,
             edges: addEdge(
@@ -231,7 +231,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           const source = connection.source ?? oldEdge.source
           const target = connection.target ?? oldEdge.target
           const colorOf = (id: string) =>
-            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#78786e'
           // Keep the single-output rule: drop other edges from the same handle.
           const edges = c.edges.filter(
             (e) =>

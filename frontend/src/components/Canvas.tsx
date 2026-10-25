@@ -14,6 +14,7 @@ import {
 import { Map as MapIcon, Maximize, MousePointer2, Plus, ZoomIn, ZoomOut } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { alertDialog } from '../dialog/api'
+import { SHORTCUT } from '../lib/shortcut'
 import { pluginMap } from '../plugins/registry'
 import { useWorkflowStore, selectEdges, selectNodes, type WorkflowNode as WorkflowNodeType } from '../store/workflowStore'
 import NodePicker from './NodePicker'
@@ -108,8 +109,20 @@ export default function Canvas() {
     onReconnect(oldEdge, connection)
   }, [onReconnect])
 
+  // ⌘K / Ctrl+K toggles the step palette, from anywhere in the editor.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPickerOpen((o) => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
-    <div className="canvas" ref={wrapRef}>
+    <div className="relative min-w-0 flex-1" ref={wrapRef}>
       <ReactFlow<WorkflowNodeType>
         nodes={nodes}
         edges={edges}
@@ -121,7 +134,7 @@ export default function Canvas() {
         onConnect={onConnect}
         onReconnect={handleReconnect}
         connectionLineType={ConnectionLineType.Bezier}
-        connectionLineStyle={{ stroke: '#22d3ee', strokeWidth: 2.5 }}
+        connectionLineStyle={{ stroke: '#a3e635', strokeWidth: 2.5 }}
         isValidConnection={isValidConnection}
         onNodeClick={(_, n) => selectNode(n.id)}
         onPaneClick={() => selectNode(null)}
@@ -133,14 +146,14 @@ export default function Canvas() {
         fitViewOptions={{ maxZoom: 1 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={2} color="#4a4a55" />
+        <Background variant={BackgroundVariant.Dots} gap={16} size={2} color="#4a4a44" />
         {mapOpen && (
           <MiniMap
             position="bottom-center"
             pannable
             zoomable
-            maskColor="rgba(9, 9, 11, 0.8)"
-            nodeColor={(n) => pluginMap[(n as WorkflowNodeType).data.pluginType]?.color ?? '#71717a'}
+            maskColor="rgba(11, 11, 10, 0.8)"
+            nodeColor={(n) => pluginMap[(n as WorkflowNodeType).data.pluginType]?.color ?? '#78786e'}
             className="canvas-minimap"
           />
         )}
@@ -170,16 +183,24 @@ export default function Canvas() {
         <MeasureNodes />
       </ReactFlow>
 
-      <button className="canvas-add-btn" onClick={() => setPickerOpen((o) => !o)} title="Add step">
-        <Plus size={20} />
+      <button
+        className="absolute right-4 top-4 z-10 grid h-8 w-8 cursor-pointer place-items-center rounded-lg border border-brand/45 bg-brand text-on-brand shadow-[0_6px_18px_rgb(163_230_53/0.3)] transition-[transform,box-shadow,background-color] duration-150 hover:scale-105 hover:bg-brand-strong hover:shadow-[0_8px_22px_rgb(163_230_53/0.4)]"
+        onClick={() => setPickerOpen((o) => !o)}
+        title={`Add step (${SHORTCUT})`}
+        aria-label="Add step"
+      >
+        <Plus size={17} strokeWidth={2.5} />
       </button>
       {pickerOpen && <NodePicker onPick={pickNode} onClose={() => setPickerOpen(false)} />}
 
       {nodes.length === 0 && (
-        <div className="empty-state">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center text-muted">
           <MousePointer2 size={28} />
-          <h2>Build your first workflow</h2>
-          <p>Hit + to add a trigger, then keep adding steps. New steps connect after the selected node.</p>
+          <h2 className="mt-2 text-lg text-ink">Build your first workflow</h2>
+          <p className="m-0 max-w-[340px] text-[13px]">
+            Press {SHORTCUT} to add a trigger, then keep adding steps. New steps connect after the
+            selected node.
+          </p>
         </div>
       )}
     </div>

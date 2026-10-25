@@ -35,13 +35,13 @@ function DialogCard({ dialog }: { dialog: PendingDialog }) {
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && dismissDialog(false)}>
-      <DialogContent className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 shadow-2xl">
+      <DialogContent className="max-w-md bg-stone-950 border-stone-800 text-stone-100 shadow-2xl">
         <DialogHeader className="space-y-2">
-          <DialogTitle className="text-lg font-semibold tracking-tight text-zinc-100">
+          <DialogTitle className="text-lg font-semibold tracking-tight text-stone-100">
             {dialog.title}
           </DialogTitle>
           {dialog.body && (
-            <DialogDescription className="text-sm text-zinc-400">
+            <DialogDescription className="text-sm text-stone-400">
               {dialog.body}
             </DialogDescription>
           )}
@@ -55,7 +55,7 @@ function DialogCard({ dialog }: { dialog: PendingDialog }) {
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               aria-label={dialog.title}
-              className="bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-cyan-400"
+              className="bg-stone-900 border-stone-700 text-stone-100 placeholder:text-stone-500 focus-visible:ring-lime-400"
             />
           </div>
         )}

@@ -67,8 +67,8 @@ export function buildTemplateCanvas(tpl: AutomationTemplate): CanvasSnapshot {
     animated: true,
     reconnectable: true,
     data: {
-      sourceColor: pluginMap[tpl.nodes[e.from].pluginType]?.color ?? '#71717a',
-      targetColor: pluginMap[tpl.nodes[e.to].pluginType]?.color ?? '#71717a',
+      sourceColor: pluginMap[tpl.nodes[e.from].pluginType]?.color ?? '#78786e',
+      targetColor: pluginMap[tpl.nodes[e.to].pluginType]?.color ?? '#78786e',
     },
   }));
   for (const s of sinks) {
@@ -81,7 +81,7 @@ export function buildTemplateCanvas(tpl: AutomationTemplate): CanvasSnapshot {
       animated: true,
       reconnectable: true,
       data: {
-        sourceColor: pluginMap[tpl.nodes[s].pluginType]?.color ?? '#71717a',
+        sourceColor: pluginMap[tpl.nodes[s].pluginType]?.color ?? '#78786e',
         targetColor: pluginMap['core.end']?.color ?? '#a1a1aa',
       },
     });

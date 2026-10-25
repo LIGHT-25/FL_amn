@@ -1,8 +1,10 @@
 import { Bot, Send } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { client } from '../api';
 import { mockUser } from '../api/mockUser';
-import './chat.css';
 
 interface Message {
   id: number;
@@ -94,44 +96,84 @@ export default function Chat() {
     }
   };
 
+  const rowCls = 'flex items-start gap-2.5';
+  const avatarCls =
+    'grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] border border-line bg-panel-2 text-muted';
+  const bubbleBase =
+    'max-w-[75%] whitespace-pre-line rounded-xl px-3.5 py-2.5 text-[13.5px] leading-[1.6]';
+
   return (
-    <div className="ff-chat">
-      <h1>Chat</h1>
-      <p>Ask about your automations. Answers come from live workspace data.</p>
-      <div className="ff-chat-log" ref={logRef}>
+    <div className="mx-auto flex h-full max-w-[860px] flex-col px-7 pt-6 pb-5">
+      <h1 className="text-xl font-[650]">Chat</h1>
+      <p className="mt-1.5 mb-4 text-sm text-muted">
+        Ask about your automations. Answers come from live workspace data.
+      </p>
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-0.5 pt-1 pb-3"
+        ref={logRef}
+      >
         {messages.map((m) => (
-          <div className={`ff-chat-row ${m.role}`} key={m.id}>
-            <span className="ff-chat-avatar">
-              {m.role === 'bot' ? <Bot size={16} /> : <span className="ff-avatar">{mockUser.initials}</span>}
+          <div className={cn(rowCls, m.role === 'user' && 'flex-row-reverse')} key={m.id}>
+            <span className={avatarCls}>
+              {m.role === 'bot' ? (
+                <Bot size={16} />
+              ) : (
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#0d9488] text-[13px] font-semibold text-white">
+                  {mockUser.initials}
+                </span>
+              )}
             </span>
-            <span className="ff-chat-bubble">{m.text}</span>
+            <span
+              className={cn(
+                bubbleBase,
+                m.role === 'user'
+                  ? 'border border-lime-400/30 bg-lime-400/[0.12]'
+                  : 'border border-line bg-panel',
+              )}
+            >
+              {m.text}
+            </span>
           </div>
         ))}
         {thinking && (
-          <div className="ff-chat-row bot">
-            <span className="ff-chat-avatar">
+          <div className={rowCls}>
+            <span className={avatarCls}>
               <Bot size={16} />
             </span>
-            <span className="ff-chat-bubble">
-              <span className="ff-typing">
-                <span />
-                <span />
-                <span />
+            <span className={cn(bubbleBase, 'border border-line bg-panel')}>
+              <span className="inline-flex gap-[5px] px-0.5 py-1">
+                <span
+                  className="h-[7px] w-[7px] animate-pulse rounded-full bg-muted"
+                  style={{ animationDuration: '1.1s', animationTimingFunction: 'ease-in-out' }}
+                />
+                <span
+                  className="h-[7px] w-[7px] animate-pulse rounded-full bg-muted"
+                  style={{ animationDuration: '1.1s', animationTimingFunction: 'ease-in-out', animationDelay: '0.18s' }}
+                />
+                <span
+                  className="h-[7px] w-[7px] animate-pulse rounded-full bg-muted"
+                  style={{ animationDuration: '1.1s', animationTimingFunction: 'ease-in-out', animationDelay: '0.36s' }}
+                />
               </span>
             </span>
           </div>
         )}
       </div>
-      <form className="ff-chat-compose" onSubmit={send}>
-        <input
+      <form className="flex gap-2 border-t border-line pt-3" onSubmit={send}>
+        <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Ask about your automations…"
           aria-label="Chat message"
+          className="h-auto flex-1 rounded-[10px] border-line bg-panel px-3.5 py-2.5 text-[14px] focus-visible:border-brand focus-visible:ring-[3px] focus-visible:ring-lime-400/15"
         />
-        <button className="ff-chat-send" disabled={draft.trim() === '' || thinking}>
+        <Button
+          type="submit"
+          disabled={draft.trim() === '' || thinking}
+          className="h-auto gap-[7px] rounded-[10px] px-4 py-2.5 text-[14px] text-[#16220a] shadow-none hover:bg-lime-400 [&_svg]:size-[15px]"
+        >
           <Send size={15} /> Send
-        </button>
+        </Button>
       </form>
     </div>
   );

@@ -6,6 +6,7 @@ import { alertDialog, confirmDialog } from '../dialog/api'
 import { missingRequired, pluginMap } from '../plugins/registry'
 import { useWorkflowStore, type WorkflowFile } from '../store/workflowStore'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 /**
  * The toolbar name field is its own source of truth while the user types.
@@ -71,10 +72,14 @@ function NameField({ id, serverName, inputRef }: { id: string; serverName: strin
   }
 
   return (
-    <span className="wf-name-wrap">
+    <span className="relative inline-flex items-center">
       <input
         ref={inputRef}
-        className={status === 'saved' ? 'wf-name is-saved' : 'wf-name'}
+        className={cn(
+          'min-w-[260px] rounded-md border border-transparent bg-transparent px-2 py-1 font-semibold text-ink outline-none',
+          'hover:border-faint focus:border-faint',
+          status === 'saved' && 'animate-[name-flash_1.1s_ease-out]',
+        )}
         value={value}
         onChange={(e) => {
           setDraft(e.target.value)
@@ -87,7 +92,15 @@ function NameField({ id, serverName, inputRef }: { id: string; serverName: strin
         placeholder="Untitled workflow"
       />
       {status !== null && (
-        <span className={`wf-name-status ${status}`} aria-live="polite">
+        <span
+          className={cn(
+            'pointer-events-none absolute right-2 top-1/2 inline-flex -translate-y-1/2 items-center gap-1 whitespace-nowrap',
+            'rounded-full border px-2 py-[3px] text-[11px] font-medium',
+            'animate-[status-in_0.18s_ease-out]',
+            status === 'saved' ? 'border-brand/25 bg-brand/10 text-brand' : 'border-line bg-panel-2 text-muted',
+          )}
+          aria-live="polite"
+        >
           {status === 'saved' ? <Check size={12} /> : null}
           {status === 'saved' ? 'Saved' : 'Saving\u2026'}
         </span>
@@ -175,30 +188,35 @@ export default function Toolbar() {
   };
 
   return (
-    <header className="toolbar">
-      <div className="brand">
+    <header className="flex h-[52px] items-center justify-between border-b border-line bg-panel px-4">
+      <div className="flex items-center gap-2.5 text-brand">
         <Button
           variant="outline"
           size="sm"
           onClick={() => navigate('/app')}
           title="Back to automations"
-          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+          className="border-stone-800 bg-stone-900/60 hover:bg-stone-800 text-stone-300 hover:text-stone-100 h-8 gap-1.5"
         >
           <ArrowLeft size={14} /> Flows
         </Button>
         {workflowId ? (
           <NameField key={workflowId} id={workflowId} serverName={workflow?.name ?? ''} inputRef={nameInputRef} />
         ) : (
-          <input className="wf-name" value="" placeholder="Untitled workflow" readOnly />
+          <input
+            className="min-w-[260px] rounded-md border border-transparent bg-transparent px-2 py-1 font-semibold text-ink outline-none hover:border-faint focus:border-faint"
+            value=""
+            placeholder="Untitled workflow"
+            readOnly
+          />
         )}
       </div>
-      <div className="toolbar-actions">
+      <div className="flex gap-2">
         <Button
           variant="outline"
           size="sm"
           onClick={() => fileRef.current?.click()}
           title="Import JSON"
-          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+          className="border-stone-800 bg-stone-900/60 hover:bg-stone-800 text-stone-300 hover:text-stone-100 h-8 gap-1.5"
         >
           <Upload size={14} /> Import
         </Button>
@@ -208,7 +226,7 @@ export default function Toolbar() {
           onClick={exportJson}
           disabled={nodeCount === 0}
           title="Export JSON"
-          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 h-8 gap-1.5"
+          className="border-stone-800 bg-stone-900/60 hover:bg-stone-800 text-stone-300 hover:text-stone-100 h-8 gap-1.5"
         >
           <Download size={14} /> Export
         </Button>
@@ -217,7 +235,7 @@ export default function Toolbar() {
           size="sm"
           onClick={onClear}
           disabled={nodeCount === 0}
-          className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 hover:border-red-500/40 hover:text-red-400 h-8 gap-1.5"
+          className="border-stone-800 bg-stone-900/60 hover:bg-stone-800 text-stone-300 hover:text-stone-100 hover:border-red-500/40 hover:text-red-400 h-8 gap-1.5"
         >
           <Eraser size={14} /> Clear
         </Button>
@@ -226,7 +244,7 @@ export default function Toolbar() {
           size="sm"
           onClick={validate}
           disabled={nodeCount === 0}
-          className="bg-cyan-400 text-zinc-950 hover:bg-cyan-300 font-semibold shadow-sm h-8 gap-1.5"
+          className="bg-lime-400 text-stone-950 hover:bg-lime-300 font-semibold shadow-sm h-8 gap-1.5"
         >
           <Play size={14} /> Test run
         </Button>
