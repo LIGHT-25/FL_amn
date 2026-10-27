@@ -8,6 +8,7 @@ import { DialogHost } from './dialog/dialog.tsx';
 import './index.css';
 import Chat from './pages/Chat.tsx';
 import Debugging from './pages/Debugging.tsx';
+import Landing from './pages/Landing.tsx';
 import ProjectDashboard from './pages/ProjectDashboard.tsx';
 import Explore from './pages/Explore.tsx';
 import PlaceholderPage from './pages/PlaceholderPage.tsx';
@@ -20,7 +21,7 @@ createRoot(document.getElementById('root')!).render(
       <DialogHost />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/app" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/app" element={<AppShell />}>
             <Route index element={<ProjectDashboard />} />
             <Route path="chat" element={<Chat />} />
