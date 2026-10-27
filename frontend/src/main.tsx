@@ -13,7 +13,6 @@ import Explore from './pages/Explore.tsx';
 import PlaceholderPage from './pages/PlaceholderPage.tsx';
 import Search from './pages/Search.tsx';
 import AppShell from './shell/AppShell.tsx';
-import './styles/tokens.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

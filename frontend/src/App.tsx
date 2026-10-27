@@ -1,9 +1,10 @@
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+// Must follow the library stylesheet: equal-specificity overrides win ties.
+import './styles/reactflow.css'
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkflow } from './api/query'
-import './App.css'
 import Canvas from './components/Canvas'
 import ConfigPanel from './components/ConfigPanel'
 import Toolbar from './components/Toolbar'
@@ -21,11 +22,16 @@ export default function App() {
 
   if (!isPending && workflowId && !workflow) {
     return (
-      <div className="app">
-        <div className="app-missing">
-          <h2>Automation not found</h2>
-          <p>It may have been deleted. Pick another one from the dashboard.</p>
-          <button onClick={() => navigate('/app')}>Back to automations</button>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-muted">
+          <h2 className="m-0 text-lg text-ink">Automation not found</h2>
+          <p className="m-0 mb-2 text-[13px]">It may have been deleted. Pick another one from the dashboard.</p>
+          <button
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line bg-panel-2 px-3 py-1.5 text-[13px] text-ink transition-colors hover:bg-line disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => navigate('/app')}
+          >
+            Back to automations
+          </button>
         </div>
       </div>
     )
@@ -33,9 +39,9 @@ export default function App() {
 
   return (
     <ReactFlowProvider>
-      <div className="app">
+      <div className="flex h-full min-h-0 flex-col">
         <Toolbar />
-        <div className="workspace">
+        <div className="flex min-h-0 flex-1">
           <Canvas />
           <ConfigPanel />
         </div>

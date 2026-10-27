@@ -68,6 +68,69 @@ interface WorkflowState {
 
 const newId = () => crypto.randomUUID().slice(0, 8)
 
+const END_TYPE = 'core.end'
+
+const firstOutputId = (pluginType: string): string =>
+  pluginMap[pluginType]?.outputs[0]?.id ?? 'out'
+
+/**
+ * The workflow graph always terminates in an End node: any single-output
+ * step left without a downstream step is wired into one (created on
+ * demand, first time to the right of the rightmost open step). Running
+ * after connects/adds keeps the canvas free of dangling build edges; a
+ * user-deleted End edge stays deleted because node/edge *removals* never
+ * call this.
+ */
+function connectDanglingToEnd(
+  set: (fn: (s: WorkflowState) => Partial<WorkflowState>) => void,
+  get: () => WorkflowState,
+): void {
+  withCanvas(set, get, (c) => {
+    const sources = new Set(c.edges.map((e) => e.source))
+    const dangling = c.nodes.filter((n) => {
+      const def = pluginMap[n.data.pluginType]
+      return def &&
+        def.kind !== 'trigger' &&
+        def.kind !== 'end' &&
+        def.outputs.length === 1 &&
+        !sources.has(n.id)
+    })
+    if (dangling.length === 0) return c
+    let end = c.nodes.find((n) => n.data.pluginType === END_TYPE)
+    let nodes = c.nodes
+    if (!end) {
+      const anchor = dangling.reduce((a, b) => (b.position.x > a.position.x ? b : a))
+      end = {
+        id: newId(),
+        type: 'workflow',
+        position: { x: anchor.position.x + 340, y: anchor.position.y },
+        data: { pluginType: END_TYPE, label: 'End', config: {} },
+      }
+      nodes = [...nodes, end]
+    }
+    const endColor = pluginMap[END_TYPE]?.color ?? '#a1a1aa'
+    const routed = new Set(c.edges.map((e) => `${e.source}->${e.target}`))
+    const edges = [...c.edges]
+    for (const d of dangling) {
+      if (routed.has(`${d.id}->${end.id}`)) continue
+      edges.push({
+        id: `e-${newId()}`,
+        source: d.id,
+        sourceHandle: firstOutputId(d.data.pluginType),
+        target: end.id,
+        targetHandle: null,
+        animated: true,
+        reconnectable: true,
+        data: {
+          sourceColor: pluginMap[d.data.pluginType]?.color ?? '#78786e',
+          targetColor: endColor,
+        },
+      })
+    }
+    return { nodes, edges }
+  })
+}
+
 function currentNodes(get: () => WorkflowState): WorkflowNode[] {
   const { currentId, canvases } = get()
   return currentId ? (canvases[currentId]?.nodes ?? []) : []
@@ -135,14 +198,14 @@ export const useWorkflowStore = create<WorkflowState>()(
       onEdgesChange: (changes) =>
         withCanvas(set, get, (c) => ({ ...c, edges: applyEdgeChanges(changes, c.edges) })),
 
-      onConnect: (connection) =>
+      onConnect: (connection) => {
         withCanvas(set, get, (c) => {
           // An output handle feeds exactly one downstream step; reconnecting replaces the old edge.
           const edges = c.edges.filter(
             (e) => !(e.source === connection.source && (e.sourceHandle ?? null) === (connection.sourceHandle ?? null)),
           )
           const colorOf = (id: string | null | undefined) =>
-            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#78786e'
           return {
             ...c,
             edges: addEdge(
@@ -158,15 +221,17 @@ export const useWorkflowStore = create<WorkflowState>()(
               },
               edges,
             ),
-          };
-        }),
+          }
+        })
+        connectDanglingToEnd(set, get)
+      },
 
-      reconnectEdge: (oldEdge, connection) =>
+      reconnectEdge: (oldEdge, connection) => {
         withCanvas(set, get, (c) => {
           const source = connection.source ?? oldEdge.source
           const target = connection.target ?? oldEdge.target
           const colorOf = (id: string) =>
-            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#71717a'
+            pluginMap[c.nodes.find((n) => n.id === id)?.data.pluginType ?? '']?.color ?? '#78786e'
           // Keep the single-output rule: drop other edges from the same handle.
           const edges = c.edges.filter(
             (e) =>
@@ -187,14 +252,19 @@ export const useWorkflowStore = create<WorkflowState>()(
                   }
                 : e,
             ),
-          };
-        }),
+          }
+        })
+        connectDanglingToEnd(set, get)
+      },
 
       addNode: (pluginType, position) => {
         const def = pluginMap[pluginType]
         if (!def) return null
         const nodes = currentNodes(get)
         if (def.kind === 'trigger' && nodes.some((n) => pluginMap[n.data.pluginType]?.kind === 'trigger')) {
+          return null
+        }
+        if (def.kind === 'end' && nodes.some((n) => n.data.pluginType === END_TYPE)) {
           return null
         }
         const id = newId()
@@ -206,6 +276,9 @@ export const useWorkflowStore = create<WorkflowState>()(
         }
         withNodes(set, get, (ns) => [...ns, node])
         set({ selectedNodeId: id })
+        // Triggers never drain into End; everything else (incl. a manually
+        // placed End) keeps the "everything ends at End" invariant.
+        if (def.kind !== 'trigger') connectDanglingToEnd(set, get)
         return id
       },
 
@@ -232,6 +305,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         }
         withNodes(set, get, (ns) => [...ns, copy])
         set({ selectedNodeId: copy.id })
+        connectDanglingToEnd(set, get)
       },
 
       selectNode: (id) => set({ selectedNodeId: id }),

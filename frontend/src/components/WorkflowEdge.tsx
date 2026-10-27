@@ -7,10 +7,13 @@ export interface WorkflowEdgeData extends Record<string, unknown> {
 
 export type WorkflowEdgeType = Edge<WorkflowEdgeData, 'workflow'>;
 
-const FALLBACK = '#71717a';
+const FALLBACK = '#78786e';
 
-/** Gradient edge flowing from the source node's color to the target's,
- * with a travelling dash overlay. Widths and glow states live in CSS. */
+/** Gradient edge running from the source node's colour to the target's —
+ * a clean stroke, no arrowhead (bezier curves enter the target at an angle,
+ * so a straight-computed head always looked tilted). No dash animation
+ * either (that's reserved for the live connection preview, in CSS);
+ * widths/glow states live in reactflow.css. */
 export default function WorkflowEdge({
   id,
   sourceX,
@@ -51,7 +54,6 @@ export default function WorkflowEdge({
           ...(selected ? { filter: `drop-shadow(0 0 5px ${c2})` } : {}),
         }}
       />
-      <path d={edgePath} fill="none" className="wf-edge-flow" />
     </>
   );
 }

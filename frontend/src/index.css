@@ -1,27 +1,148 @@
-:root {
-  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
-  -webkit-font-smoothing: antialiased;
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ---------- Design tokens ----------
+   Identity: ACID LIME on WARM GRAPHITE (deliberately not the usual
+   blue/cyan automation-tool look). Every surface/ink/status colour lives
+   here as a Tailwind colour, so markup can use bg-panel / border-line /
+   text-muted etc. Default Tailwind palettes (stone, lime, red…) stay
+   available alongside. */
+@theme {
+  --color-brand: #a3e635;
+  --color-brand-strong: #84cc16;
+  --color-on-brand: #16220a; /* text/icon colour that sits on lime */
+
+  --color-bg: #0b0b0a;
+  --color-panel: #121211;
+  --color-panel-2: #1a1a17;
+  --color-line: #2b2b26;
+
+  --color-ink: #f2f2ee;
+  --color-muted: #a5a59c;
+  --color-faint: #67675f;
+
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, "Liberation Mono",
+    monospace;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+/* shadcn's HSL variables (used by ui primitives + future themes). */
+@layer base {
+  :root {
+    --background: 60 5% 4%;
+    --foreground: 60 20% 94%;
+    --card: 60 5% 4%;
+    --card-foreground: 60 20% 94%;
+    --popover: 60 4% 6%;
+    --popover-foreground: 60 20% 94%;
+    --primary: 83 78% 55%;
+    --primary-foreground: 85 74% 9%;
+    --secondary: 60 6% 13%;
+    --secondary-foreground: 60 20% 94%;
+    --muted: 60 6% 13%;
+    --muted-foreground: 60 6% 64%;
+    --accent: 60 6% 13%;
+    --accent-foreground: 60 20% 94%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 60 6% 16%;
+    --input: 60 6% 16%;
+    --ring: 83 78% 55%;
+    --radius: 0.625rem;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--foreground);
+    background: var(--background);
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
-html,
-body,
-#root {
-  margin: 0;
-  height: 100%;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    height: 100%;
+  }
+
+  /* Layered so Tailwind utilities (text-sm, text-stone-100…) still win. */
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
+/* ---------- Component keyframes
+   Used through arbitrary `animate-[name_…]` utilities; keyframes themselves
+   can't live in a Tailwind class. ---------- */
+@keyframes name-flash {
+  from {
+    border-color: #a3e635;
+    box-shadow: 0 0 0 3px rgb(163 230 53 / 0.25);
+  }
+}
+
+@keyframes status-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% + 3px));
+  }
+}
+
+/* ---------- Scrollbars: shadcn-style ----------
+   Thin, rounded, themed thumb on a transparent track. Kept inside
+   @layer base so utilities (e.g. `[scrollbar-width:none]` on tab strips)
+   can still override it — an unlayered `*` rule would win over them. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #45453c transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* 3px of transparent padding → a 4px visible thumb, like shadcn's. */
+  ::-webkit-scrollbar-thumb {
+    background-color: #45453c;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #5f5f54;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }

@@ -5,6 +5,7 @@ import {
   Bot,
   Braces,
   Calendar,
+  CircleStop,
   Clock,
   Code,
   Cpu,
@@ -35,7 +36,7 @@ import {
   Webhook,
 } from 'lucide-react'
 
-export type PluginKind = 'trigger' | 'action' | 'logic'
+export type PluginKind = 'trigger' | 'action' | 'logic' | 'end'
 
 export type FieldType = 'text' | 'textarea' | 'number' | 'select' | 'json' | 'boolean'
 
@@ -68,6 +69,7 @@ export interface PluginDefinition {
 }
 
 const single: PluginOutput[] = [{ id: 'out' }]
+const none: PluginOutput[] = []
 
 export const plugins: PluginDefinition[] = [
   {
@@ -143,6 +145,17 @@ export const plugins: PluginDefinition[] = [
       },
     ],
     outputs: single,
+  },
+  {
+    type: 'core.end',
+    label: 'End',
+    description: 'Marks where the workflow terminates',
+    category: 'Core',
+    kind: 'end',
+    icon: CircleStop,
+    color: '#a1a1aa',
+    fields: [],
+    outputs: none,
   },
   {
     type: 'core.transform',
@@ -279,7 +292,7 @@ export const plugins: PluginDefinition[] = [
   },
   {
     type: 'app.sheets.append',
-    label: 'Sheets: Append Row',
+    label: 'Sheets: Insert Row',
     description: 'Add a row to Google Sheets',
     category: 'Apps',
     kind: 'action',
@@ -289,6 +302,37 @@ export const plugins: PluginDefinition[] = [
       { key: 'spreadsheetId', label: 'Spreadsheet ID', type: 'text', required: true },
       { key: 'sheet', label: 'Sheet name', type: 'text', defaultValue: 'Sheet1' },
       { key: 'values', label: 'Row values', type: 'json', placeholder: '{ "Date": "{{ now }}", "Amount": 180 }' },
+    ],
+    outputs: single,
+  },
+  {
+    type: 'app.sheets.update',
+    label: 'Sheets: Update Row',
+    description: 'Update an existing row in Google Sheets',
+    category: 'Apps',
+    kind: 'action',
+    icon: Sheet,
+    color: '#22c55e',
+    fields: [
+      { key: 'spreadsheetId', label: 'Spreadsheet ID', type: 'text', required: true },
+      { key: 'sheet', label: 'Sheet name', type: 'text', defaultValue: 'Sheet1' },
+      { key: 'rowId', label: 'Row number / lookup key', type: 'text', placeholder: '5 or {{ steps.find.rowId }}', required: true },
+      { key: 'values', label: 'Updated values', type: 'json', placeholder: '{ "Status": "Done" }', required: true },
+    ],
+    outputs: single,
+  },
+  {
+    type: 'app.sheets.delete',
+    label: 'Sheets: Delete Row',
+    description: 'Delete a row from Google Sheets',
+    category: 'Apps',
+    kind: 'action',
+    icon: Sheet,
+    color: '#22c55e',
+    fields: [
+      { key: 'spreadsheetId', label: 'Spreadsheet ID', type: 'text', required: true },
+      { key: 'sheet', label: 'Sheet name', type: 'text', defaultValue: 'Sheet1' },
+      { key: 'rowId', label: 'Row number / lookup key', type: 'text', placeholder: '5 or {{ steps.find.rowId }}', required: true },
     ],
     outputs: single,
   },
