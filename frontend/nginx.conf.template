@@ -4,18 +4,21 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
+  # Defer upstream DNS so nginx can start while the API is cold or redeploying.
+  resolver 8.8.8.8 valid=30s ipv6=off;
+  set $api_upstream "${API_UPSTREAM}";
+
   location / {
     try_files $uri $uri/ /index.html;
   }
 
-  # Same-origin /api so auth cookies work across split Render services.
-  # API_UPSTREAM examples:
-  #   Render:  http://flowforge-api:10000
-  #   Compose: http://api:3001
+  # Same-origin /api so auth cookies stay on the web host.
+  # API_UPSTREAM must be an absolute origin, e.g. https://flowforge-api-xxxx.onrender.com
   location /api/ {
-    proxy_pass ${API_UPSTREAM}/api/;
+    proxy_pass $api_upstream/api/;
     proxy_http_version 1.1;
-    proxy_set_header Host $host;
+    proxy_ssl_server_name on;
+    proxy_set_header Host $proxy_host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -23,12 +26,14 @@ server {
   }
 
   location /health {
-    proxy_pass ${API_UPSTREAM}/health;
-    proxy_set_header Host $host;
+    proxy_pass $api_upstream/health;
+    proxy_ssl_server_name on;
+    proxy_set_header Host $proxy_host;
   }
 
   location /ready {
-    proxy_pass ${API_UPSTREAM}/ready;
-    proxy_set_header Host $host;
+    proxy_pass $api_upstream/ready;
+    proxy_ssl_server_name on;
+    proxy_set_header Host $proxy_host;
   }
 }
