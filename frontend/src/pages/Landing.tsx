@@ -3,7 +3,12 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { getSession, login, signup } from '../auth/session'
 import { LOCAL_LOGOS, SERVICE_ORDER } from '../plugins/services'
 import { templates } from '../templates/templates'
-import { BranchMock, CanvasMock, FlowsMock, PickerMock, RunsMock, TemplatesMock } from './landing-mocks'
+import branchShot from '../assets/landing/branch.png'
+import canvasShot from '../assets/landing/canvas.png'
+import dashboardShot from '../assets/landing/dashboard.png'
+import debuggingShot from '../assets/landing/debugging.png'
+import exploreShot from '../assets/landing/explore.png'
+import pickerShot from '../assets/landing/picker.png'
 import './landing.css'
 
 const FRAMEWORK = new Set(['triggers', 'logic', 'core'])
@@ -44,23 +49,23 @@ const features = [
   {
     title: 'Workflow builder',
     copy: 'Drag steps onto the canvas and connect them.',
-    view: <CanvasMock />,
+    view: <img src={canvasShot} alt="Workflow builder canvas with connected steps" />,
   },
   {
     id: 'runs',
     title: 'Run log',
     copy: 'Each run keeps the step, the status, and the duration.',
-    view: <RunsMock />,
+    view: <img src={debuggingShot} alt="Run log listing steps with statuses and durations" />,
   },
   {
     title: 'Templates',
     copy: 'Open a starter flow and edit it on the canvas.',
-    view: <TemplatesMock />,
+    view: <img src={exploreShot} alt="Template gallery with starter flows" />,
   },
   {
     title: 'Step picker',
     copy: 'Triggers, apps, Gemini, Ollama, and a code step.',
-    view: <PickerMock />,
+    view: <img src={pickerShot} alt="Step picker with triggers, apps, AI and utility steps" />,
   },
 ]
 
@@ -337,7 +342,7 @@ export default function Landing() {
 
       <div className="lf-stage">
         <div className="lf-frame">
-          <CanvasMock />
+          <img src={canvasShot} alt="FlowForge workflow builder canvas" />
         </div>
       </div>
 
@@ -362,7 +367,7 @@ export default function Landing() {
         <h2>Branch, then read the run.</h2>
         <div className="lf-why-card reveal">
           <div className="lf-why-visual">
-            <BranchMock />
+            <img src={branchShot} alt="IF node branching into two paths on the canvas" />
           </div>
           <div className="lf-why-copy">
             <p>
@@ -461,7 +466,7 @@ export default function Landing() {
             </a>
           </div>
           <div className="lf-close-visual">
-            <FlowsMock />
+            <img src={dashboardShot} alt="Automations dashboard listing flows" />
           </div>
         </section>
       </div>
