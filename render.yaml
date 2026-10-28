@@ -30,7 +30,11 @@ services:
       - key: DEMO_MODE
         value: "true"
       - key: DEMO_PUBLISH_ENABLED
-        value: "false"
+        value: "true"
+      - key: FACEBOOK_PAGE_TOKEN
+        sync: false
+      - key: FACEBOOK_PAGE_ID
+        sync: false
       - key: RUN_SEED
         value: "true"
       - key: DEMO_MAX_RUNS_PER_DAY
@@ -62,5 +66,5 @@ services:
     # After first deploy: set VITE_API_URL=https://<flowforge-api>.onrender.com
     # and on the API set WEB_ORIGIN=https://<flowforge-web>.onrender.com, then rebuild web.
     envVars:
-      - key: VITE_API_URL
+      - key: API_UPSTREAM
         sync: false
