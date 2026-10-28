@@ -13,14 +13,22 @@ function normalizeQuery(raw: string): string {
     .trim();
 }
 
+function pickRandomIndex(length: number): number {
+  if (length <= 1) return 0;
+  return Math.floor(Math.random() * length);
+}
+
 async function searchPexels(params: {
   apiKey: string;
   query: string;
   signal: AbortSignal;
 }): Promise<ImageHit> {
+  // Random page so repeated keywords still surface different photos.
+  const page = 1 + pickRandomIndex(5);
   const url = new URL("https://api.pexels.com/v1/search");
   url.searchParams.set("query", params.query);
-  url.searchParams.set("per_page", "5");
+  url.searchParams.set("per_page", "15");
+  url.searchParams.set("page", String(page));
   url.searchParams.set("orientation", "landscape");
   const response = await fetch(url, {
     headers: { Authorization: params.apiKey },
@@ -37,7 +45,8 @@ async function searchPexels(params: {
   if (!response.ok) {
     throw new Error(body.error ?? `Pexels HTTP ${response.status}`);
   }
-  const photo = body.photos?.[0];
+  const photos = body.photos ?? [];
+  const photo = photos[pickRandomIndex(photos.length)];
   const imageUrl = photo?.src?.large ?? photo?.src?.original ?? photo?.src?.medium ?? "";
   if (!imageUrl) {
     throw new Error(`Pexels returned no images for "${params.query}"`);
@@ -46,7 +55,7 @@ async function searchPexels(params: {
     url: imageUrl,
     tags: photo?.alt,
     photographer: photo?.photographer,
-    results: body.photos ?? [],
+    results: photos,
   };
 }
 
@@ -55,9 +64,51 @@ async function searchUnsplash(params: {
   query: string;
   signal: AbortSignal;
 }): Promise<ImageHit> {
+  // /photos/random varies on every call; fall back to search+pick if needed.
+  const randomUrl = new URL("https://api.unsplash.com/photos/random");
+  randomUrl.searchParams.set("query", params.query);
+  randomUrl.searchParams.set("orientation", "landscape");
+  randomUrl.searchParams.set("count", "1");
+
+  const randomResponse = await fetch(randomUrl, {
+    headers: {
+      Authorization: `Client-ID ${params.apiKey}`,
+      "Accept-Version": "v1",
+    },
+    signal: params.signal,
+  });
+
+  if (randomResponse.ok) {
+    const raw = (await randomResponse.json()) as
+      | Array<{
+          urls?: { regular?: string; full?: string; small?: string };
+          alt_description?: string | null;
+          description?: string | null;
+          user?: { name?: string };
+        }>
+      | {
+          urls?: { regular?: string; full?: string; small?: string };
+          alt_description?: string | null;
+          description?: string | null;
+          user?: { name?: string };
+        };
+    const photo = Array.isArray(raw) ? raw[0] : raw;
+    const imageUrl = photo?.urls?.regular ?? photo?.urls?.full ?? photo?.urls?.small ?? "";
+    if (imageUrl) {
+      return {
+        url: imageUrl,
+        tags: photo?.alt_description ?? photo?.description ?? undefined,
+        photographer: photo?.user?.name,
+        results: Array.isArray(raw) ? raw : [raw],
+      };
+    }
+  }
+
+  const page = 1 + pickRandomIndex(5);
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", params.query);
-  url.searchParams.set("per_page", "5");
+  url.searchParams.set("per_page", "15");
+  url.searchParams.set("page", String(page));
   url.searchParams.set("orientation", "landscape");
   const response = await fetch(url, {
     headers: {
@@ -78,7 +129,8 @@ async function searchUnsplash(params: {
   if (!response.ok) {
     throw new Error(body.errors?.join(", ") ?? `Unsplash HTTP ${response.status}`);
   }
-  const photo = body.results?.[0];
+  const results = body.results ?? [];
+  const photo = results[pickRandomIndex(results.length)];
   const imageUrl = photo?.urls?.regular ?? photo?.urls?.full ?? photo?.urls?.small ?? "";
   if (!imageUrl) {
     throw new Error(`Unsplash returned no images for "${params.query}"`);
@@ -87,7 +139,7 @@ async function searchUnsplash(params: {
     url: imageUrl,
     tags: photo?.alt_description ?? photo?.description ?? undefined,
     photographer: photo?.user?.name,
-    results: body.results ?? [],
+    results,
   };
 }
 
@@ -173,7 +225,8 @@ export const imagesSearchNode: NodeDefinition = {
       throw new Error(`Stock image search requires a key for ${provider}. ${hint}`);
     }
 
-    const url = `https://picsum.photos/seed/${encodeURIComponent(query.slice(0, 40) || "flowforge")}/1200/630`;
+    const seed = `${query.slice(0, 24) || "flowforge"}-${Date.now().toString(36)}`;
+    const url = `https://picsum.photos/seed/${encodeURIComponent(seed)}/1200/630`;
     return {
       output: { provider, query, url, imageUrl: url, mocked: true },
       logs: [

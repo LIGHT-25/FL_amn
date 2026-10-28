@@ -43,11 +43,13 @@ function pickStatus(values: unknown): string {
 }
 
 function chooseTopicRow(rows: Record<string, unknown>[]): Record<string, unknown> {
-  const pending = rows.find((r) => {
+  const isPending = (r: Record<string, unknown>) => {
     const status = asString(r.Status ?? r.status).toLowerCase();
     return !status || status === "pending" || status === "new";
-  });
-  return pending ?? rows[0]!;
+  };
+  const pending = rows.filter(isPending);
+  const pool = pending.length > 0 ? pending : rows;
+  return pool[Math.floor(Math.random() * pool.length)]!;
 }
 
 type SheetsTarget = {

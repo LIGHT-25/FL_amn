@@ -114,7 +114,7 @@ export const templates: AutomationTemplate[] = [
         x: 0,
         y: 540,
       },
-      { pluginType: 'app.images.search', label: 'Find images', config: { stepKey: 'images', provider: 'Unsplash', query: '{{ steps.topics.keywords }}' }, x: 0, y: 720 },
+      { pluginType: 'app.images.search', label: 'Find images', config: { stepKey: 'images', provider: 'Unsplash', query: '{{ steps.topics.topic }} {{ steps.topics.keywords }}' }, x: 0, y: 720 },
       // Status "approved" → Facebook publish. Change to "pending" (or anything else) to hit Slack revision instead.
       {
         pluginType: 'app.sheets.append',
