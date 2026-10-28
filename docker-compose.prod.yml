@@ -69,7 +69,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ""
-        NGINX_CONF: nginx.compose.conf
+    environment:
+      API_UPSTREAM: http://api:3001
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:
