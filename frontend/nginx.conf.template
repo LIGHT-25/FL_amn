@@ -14,8 +14,9 @@ server {
 
   # Same-origin /api so auth cookies stay on the web host.
   # API_UPSTREAM must be an absolute origin, e.g. https://flowforge-api-xxxx.onrender.com
+  # Important: no URI on proxy_pass when using a variable — keep the full /api/... path.
   location /api/ {
-    proxy_pass $api_upstream/api/;
+    proxy_pass $api_upstream;
     proxy_http_version 1.1;
     proxy_ssl_server_name on;
     proxy_set_header Host $proxy_host;
@@ -25,13 +26,13 @@ server {
     proxy_set_header Cookie $http_cookie;
   }
 
-  location /health {
+  location = /health {
     proxy_pass $api_upstream/health;
     proxy_ssl_server_name on;
     proxy_set_header Host $proxy_host;
   }
 
-  location /ready {
+  location = /ready {
     proxy_pass $api_upstream/ready;
     proxy_ssl_server_name on;
     proxy_set_header Host $proxy_host;
