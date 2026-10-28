@@ -44,11 +44,18 @@ export interface ExecutionSummary {
 export interface FlowForgeClient {
   listWorkflows(): Promise<WorkflowSummary[]>;
   getWorkflow(id: string): Promise<WorkflowSummary | undefined>;
-  createWorkflow(name: string): Promise<WorkflowSummary>;
+  createWorkflow(name: string, graph?: unknown): Promise<WorkflowSummary>;
   renameWorkflow(id: string, name: string): Promise<WorkflowSummary>;
   setWorkflowStatus(id: string, status: WorkflowStatus): Promise<WorkflowSummary>;
   duplicateWorkflow(id: string): Promise<WorkflowSummary>;
   deleteWorkflow(id: string): Promise<void>;
   setStarred(id: string, starred: boolean): Promise<WorkflowSummary>;
   listExecutions(workflowId?: string): Promise<ExecutionSummary[]>;
+  /** Optional on mock; required on HTTP client. */
+  saveWorkflowGraph?(
+    id: string,
+    graph: unknown,
+    name?: string,
+  ): Promise<WorkflowSummary>;
+  runWorkflow?(id: string): Promise<ExecutionSummary>;
 }

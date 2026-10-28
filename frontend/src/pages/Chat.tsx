@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { client } from '../api';
-import { mockUser } from '../api/mockUser';
+import { getMockUser } from '../api/mockUser';
 
 interface Message {
   id: number;
@@ -13,12 +13,12 @@ interface Message {
 }
 
 let nextId = 1;
-const firstName = mockUser.name.split(' ')[0];
 
 /** Mock chatbot: answers real questions from live store data. The full AI
  * builder (turning words into workflows) arrives with the backend. */
 async function answerChat(input: string): Promise<string> {
   const q = input.toLowerCase();
+  const firstName = getMockUser().name.split(' ')[0];
   const [workflows, executions] = await Promise.all([client.listWorkflows(), client.listExecutions()]);
   const active = workflows.filter((w) => w.status === 'active');
   const failed = executions.filter((e) => e.status === 'failed');
@@ -69,9 +69,12 @@ async function answerChat(input: string): Promise<string> {
 }
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 0, role: 'bot', text: `Hello ${firstName}! Ask me about your automations — try "any failures?"` },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const firstName = getMockUser().name.split(' ')[0];
+    return [
+      { id: 0, role: 'bot', text: `Hello ${firstName}! Ask me about your automations — try "any failures?"` },
+    ];
+  });
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -119,7 +122,7 @@ export default function Chat() {
                 <Bot size={16} />
               ) : (
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#0d9488] text-[13px] font-semibold text-white">
-                  {mockUser.initials}
+                  {getMockUser().initials}
                 </span>
               )}
             </span>

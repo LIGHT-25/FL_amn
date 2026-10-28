@@ -2,6 +2,7 @@ import {
   ChevronsUpDown,
   Compass,
   Lock,
+  LogOut,
   MessageSquareText,
   PanelLeftClose,
   Search,
@@ -10,7 +11,8 @@ import {
   Terminal,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { mockUser } from '../api/mockUser';
+import { getMockUser } from '../api/mockUser';
+import { logout } from '../auth/session';
 import { cn } from '@/lib/utils';
 
 interface SideItem {
@@ -28,6 +30,12 @@ const items: SideItem[] = [
 
 export default function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const navigate = useNavigate();
+  const user = getMockUser();
+
+  const signOut = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
 
   return (
     <aside
@@ -50,7 +58,7 @@ export default function Sidebar({ open, onToggle }: { open: boolean; onToggle: (
             title="Workspace switching arrives with the auth backend"
           >
             <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left text-[14.5px] font-semibold tracking-[-0.01em]">
-              {mockUser.workspaceLabel}
+              {user.workspaceLabel}
             </span>
             <ChevronsUpDown size={15} className="shrink-0 text-muted" />
           </button>
@@ -115,10 +123,10 @@ export default function Sidebar({ open, onToggle }: { open: boolean; onToggle: (
         {open ? (
           <div className="flex items-center gap-2.5 p-1.5">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#0d9488] text-[13px] font-semibold text-white">
-              {mockUser.initials}
+              {user.initials}
             </span>
             <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-              {mockUser.name}
+              {user.name}
             </span>
             <NavLink
               to="/app/settings"
@@ -127,25 +135,39 @@ export default function Sidebar({ open, onToggle }: { open: boolean; onToggle: (
             >
               <Settings size={16} />
             </NavLink>
+            <button
+              type="button"
+              onClick={signOut}
+              className="grid h-[30px] w-[30px] shrink-0 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-panel-2 hover:text-ink"
+              title="Log out"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-2.5 p-1.5">
+          <div className="flex flex-col items-center gap-1">
             <span
               className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#0d9488] text-[13px] font-semibold text-white"
-              title={mockUser.name}
+              title={user.name}
             >
-              {mockUser.initials}
+              {user.initials}
             </span>
+            <NavLink
+              to="/app/settings"
+              className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg border-none bg-transparent text-muted no-underline hover:bg-panel-2 hover:text-ink"
+              title="Settings"
+            >
+              <Settings size={17} />
+            </NavLink>
+            <button
+              type="button"
+              onClick={signOut}
+              className="grid h-[30px] w-[30px] shrink-0 cursor-pointer place-items-center rounded-lg border-none bg-transparent text-muted hover:bg-panel-2 hover:text-ink"
+              title="Log out"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-        )}
-        {!open && (
-          <NavLink
-            to="/app/settings"
-            className="mx-auto mt-1 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg border-none bg-transparent text-muted no-underline hover:bg-panel-2 hover:text-ink"
-            title="Settings"
-          >
-            <Settings size={17} />
-          </NavLink>
         )}
       </div>
     </aside>

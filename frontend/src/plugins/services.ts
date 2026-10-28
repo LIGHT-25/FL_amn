@@ -36,6 +36,7 @@ import ollamaSvg from '../assets/logos/ollama.svg'
 import postgresqlSvg from '../assets/logos/postgresql.svg'
 import telegramSvg from '../assets/logos/telegram.svg'
 import wordpressSvg from '../assets/logos/wordpress.svg'
+import unsplashSvg from '../assets/logos/unsplash.svg'
 import zammadSvg from '../assets/logos/zammad.svg'
 
 export const LOCAL_LOGOS: Record<string, string> = {
@@ -56,6 +57,7 @@ export const LOCAL_LOGOS: Record<string, string> = {
   zammad: zammadSvg,
   ollama: ollamaSvg,
   gemini: googlegeminiSvg,
+  unsplash: unsplashSvg,
 }
 
 /** True when the service can show a real logo (bundled or via its domain). */
@@ -138,7 +140,7 @@ const byType: Record<string, Entry> = {
   'app.mastodon.post': { key: 'mastodon', name: 'Mastodon', domain: 'mastodon.social', useCase: 'Publishing' },
   'app.wordpress.post': { key: 'wordpress', name: 'WordPress', domain: 'wordpress.org', useCase: 'Publishing' },
   'app.tavily.search': { key: 'tavily', name: 'Tavily', domain: 'tavily.com', useCase: 'Research' },
-  'app.images.search': { key: 'stock', name: 'Stock Images', useCase: 'Media' },
+  'app.images.search': { key: 'unsplash', name: 'Unsplash', domain: 'unsplash.com', useCase: 'Media' },
   'app.quickchart.image': { key: 'quickchart', name: 'QuickChart', domain: 'quickchart.io', useCase: 'Charts' },
   'ai.ollama': { key: 'ollama', name: 'Ollama', domain: 'ollama.com', useCase: 'AI' },
   'ai.gemini': { key: 'gemini', name: 'Google Gemini', domain: 'gemini.google.com', useCase: 'AI' },
@@ -221,7 +223,7 @@ export const SERVICE_ORDER = [
   'mastodon',
   'wordpress',
   'tavily',
-  'stock',
+  'unsplash',
   'quickchart',
   'ollama',
   'gemini',

@@ -19,6 +19,7 @@
     "lint": "echo \"lint pending\""
   },
   "dependencies": {
+    "@flowforge/nodes": "workspace:*",
     "@flowforge/shared": "workspace:*"
   },
   "devDependencies": {

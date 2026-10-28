@@ -908,6 +908,123 @@ html:has(.lf) {
   }
 }
 
+/* ---------- Auth (email / password) ---------- */
+.lf-auth-section {
+  padding-bottom: 48px;
+}
+
+.lf-auth-wrap {
+  max-width: 420px;
+  margin: 28px auto 0;
+}
+
+.lf-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 18, 17, 0.92);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.lf-auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.lf-auth-tabs button {
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(244, 244, 239, 0.65);
+  background: transparent;
+}
+
+.lf-auth-tabs button.is-on {
+  color: #16220a;
+  background: #a3e635;
+}
+
+.lf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(244, 244, 239, 0.78);
+}
+
+.lf-field input {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(11, 11, 10, 0.65);
+  color: #f4f4ef;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.lf-field input::placeholder {
+  color: rgba(244, 244, 239, 0.35);
+}
+
+.lf-field input:focus {
+  outline: none;
+  border-color: rgba(163, 230, 53, 0.7);
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.18);
+}
+
+.lf-auth-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #f87171;
+}
+
+.lf-auth-submit {
+  width: 100%;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.lf-auth-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.lf-auth-switch {
+  margin: 2px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244, 244, 239, 0.55);
+}
+
+.lf-auth-switch button {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  color: #a3e635;
+}
+
+.lf-auth-switch button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .lf-links {
     display: none;
@@ -933,4 +1050,5 @@ html:has(.lf) {
     text-align: left;
   }
 }
+
 

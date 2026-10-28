@@ -1,7 +1,9 @@
-import { ArrowLeft, Check, Download, Eraser, Play, Upload } from 'lucide-react'
+import { ArrowLeft, Check, Download, Eraser, Play, Radio, Square, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useRenameWorkflow, useWorkflow } from '../api/query'
+import { canvasToFlowGraph } from '../api/flowMapper'
+import { httpClient } from '../api/httpClient'
+import { useRenameWorkflow, useSetWorkflowStatus, useWorkflow } from '../api/query'
 import { alertDialog, confirmDialog } from '../dialog/api'
 import { missingRequired, pluginMap } from '../plugins/registry'
 import { useWorkflowStore, type WorkflowFile } from '../store/workflowStore'
@@ -117,13 +119,21 @@ export default function Toolbar() {
   const { load, clear } = useWorkflowStore.getState()
   const nameInputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [running, setRunning] = useState(false)
 
   const name = workflow?.name ?? 'Untitled workflow'
   const rename = useRenameWorkflow()
+  const setStatus = useSetWorkflowStatus()
+  const [hosting, setHosting] = useState(false)
 
   const nodes = canvas?.nodes ?? []
   const edges = canvas?.edges ?? []
   const nodeCount = nodes.length
+  const isHosted = workflow?.status === 'active'
+  const hasSchedule = nodes.some((n) => n.data.pluginType === 'trigger.schedule')
+  const scheduleNode = nodes.find((n) => n.data.pluginType === 'trigger.schedule')
+  const cronLabel = String(scheduleNode?.data.config?.cron ?? '0 9 * * *')
+  const tzLabel = String(scheduleNode?.data.config?.timezone ?? 'UTC')
 
   const exportJson = () => {
     // The live field value wins (blur commits before click, but the query
@@ -147,11 +157,11 @@ export default function Toolbar() {
         load({ nodes: parsed.nodes, edges: parsed.edges })
       }
     } catch (err) {
-      alertDialog({ title: 'Could not import', body: (err as Error).message });
+      alertDialog({ title: 'Could not import', body: (err as Error).message })
     }
   }
 
-  const validate = () => {
+  const validateLocal = (): string[] => {
     const problems: string[] = []
     const trigger = nodes.find((n) => pluginMap[n.data.pluginType]?.kind === 'trigger')
     if (!trigger) problems.push('Add a trigger to start the workflow.')
@@ -164,28 +174,109 @@ export default function Toolbar() {
         problems.push(`"${n.data.label}" is not connected to anything.`)
       }
     }
+    return problems
+  }
+
+  const run = async () => {
+    if (!workflowId) return
+    const problems = validateLocal()
     if (problems.length) {
       alertDialog({
         title: 'Fix these before running',
         body: `• ${problems.join('\n• ')}`,
-      });
-    } else {
+      })
+      return
+    }
+
+    setRunning(true)
+    try {
+      const graph = canvasToFlowGraph(nodes, edges)
+      await httpClient.saveWorkflowGraph(workflowId, graph, name)
+      const execution = await httpClient.runWorkflow(workflowId)
+      setRunning(false)
+      if (execution.status === 'failed') {
+        await alertDialog({
+          title: 'Run failed',
+          body: execution.error ?? 'Check the Debugging page for step logs.',
+        })
+      }
+      navigate(`/app/debugging?run=${execution.id}`)
+    } catch (err) {
+      setRunning(false)
       alertDialog({
-        title: 'Workflow looks valid',
-        body: 'Execution comes with the backend.',
-      });
+        title: 'Could not run workflow',
+        body: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setRunning(false)
     }
   }
 
   const onClear = async () => {
-    if (!nodeCount) return;
+    if (!nodeCount) return
     const confirmed = await confirmDialog({
       title: 'Remove all steps from the canvas?',
       confirmLabel: 'Clear',
       tone: 'danger',
-    });
-    if (confirmed) clear();
-  };
+    })
+    if (confirmed) clear()
+  }
+
+  const toggleHost = async () => {
+    if (!workflowId) return
+    if (isHosted) {
+      setHosting(true)
+      try {
+        await setStatus.mutateAsync({ id: workflowId, status: 'inactive' })
+      } catch (err) {
+        alertDialog({
+          title: 'Could not stop hosting',
+          body: err instanceof Error ? err.message : String(err),
+        })
+      } finally {
+        setHosting(false)
+      }
+      return
+    }
+
+    if (!hasSchedule) {
+      alertDialog({
+        title: 'Add a Schedule trigger',
+        body: 'Hosting keeps the automation running on a cron. Add a Schedule node first.',
+      })
+      return
+    }
+
+    const problems = validateLocal()
+    if (problems.length) {
+      alertDialog({
+        title: 'Fix these before hosting',
+        body: `• ${problems.join('\n• ')}`,
+      })
+      return
+    }
+
+    const confirmed = await confirmDialog({
+      title: 'Host this automation?',
+      body: `It will keep running on cron ${cronLabel} (${tzLabel}) until you stop hosting. Requires a successful Test run first.`,
+      confirmLabel: 'Host',
+    })
+    if (!confirmed) return
+
+    setHosting(true)
+    try {
+      const graph = canvasToFlowGraph(nodes, edges)
+      await httpClient.saveWorkflowGraph(workflowId, graph, name)
+      await setStatus.mutateAsync({ id: workflowId, status: 'active' })
+    } catch (err) {
+      alertDialog({
+        title: 'Could not host',
+        body: err instanceof Error ? err.message : String(err),
+      })
+    } finally {
+      setHosting(false)
+    }
+  }
 
   return (
     <header className="flex h-[52px] items-center justify-between border-b border-line bg-panel px-4">
@@ -209,6 +300,11 @@ export default function Toolbar() {
             readOnly
           />
         )}
+        {isHosted ? (
+          <span className="rounded-full border border-lime-400/30 bg-lime-400/10 px-2 py-0.5 text-[11px] font-semibold text-lime-300">
+            Hosted · {cronLabel}
+          </span>
+        ) : null}
       </div>
       <div className="flex gap-2">
         <Button
@@ -240,13 +336,27 @@ export default function Toolbar() {
           <Eraser size={14} /> Clear
         </Button>
         <Button
+          variant="outline"
+          size="sm"
+          onClick={toggleHost}
+          disabled={nodeCount === 0 || hosting || setStatus.isPending}
+          title={isHosted ? 'Stop scheduled hosting' : 'Host on schedule after a green Test run'}
+          className={cn(
+            'h-8 gap-1.5 border-stone-800 bg-stone-900/60 text-stone-300 hover:bg-stone-800 hover:text-stone-100',
+            isHosted && 'border-lime-400/40 text-lime-300 hover:border-lime-400/60',
+          )}
+        >
+          {isHosted ? <Square size={14} /> : <Radio size={14} />}
+          {hosting ? '…' : isHosted ? 'Stop host' : 'Host'}
+        </Button>
+        <Button
           variant="default"
           size="sm"
-          onClick={validate}
-          disabled={nodeCount === 0}
+          onClick={run}
+          disabled={nodeCount === 0 || running}
           className="bg-lime-400 text-stone-950 hover:bg-lime-300 font-semibold shadow-sm h-8 gap-1.5"
         >
-          <Play size={14} /> Test run
+          <Play size={14} /> {running ? 'Running…' : 'Test run'}
         </Button>
         <input
           ref={fileRef}

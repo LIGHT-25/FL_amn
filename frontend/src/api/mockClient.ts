@@ -9,9 +9,11 @@ import type {
   WorkflowStatus,
   WorkflowSummary,
 } from './client';
-import { mockUser } from './mockUser';
+import { getMockUser } from './mockUser';
 
 const STORE_KEY = 'flowforge-mock-v2';
+
+const seedOwner = 'You';
 
 const seedWorkflows: WorkflowSummary[] = [
   {
@@ -23,7 +25,7 @@ const seedWorkflows: WorkflowSummary[] = [
     triggerLabel: 'Manual Trigger',
     stepCount: 1,
     updatedAt: '2026-10-12T09:24:00+05:30',
-    owner: mockUser.name,
+    owner: seedOwner,
   },
   {
     id: 'wf-content',
@@ -34,7 +36,7 @@ const seedWorkflows: WorkflowSummary[] = [
     triggerLabel: 'Schedule',
     stepCount: 6,
     updatedAt: '2026-10-11T18:02:00+05:30',
-    owner: mockUser.name,
+    owner: seedOwner,
   },
   {
     id: 'wf-triage',
@@ -45,7 +47,7 @@ const seedWorkflows: WorkflowSummary[] = [
     triggerLabel: 'Webhook',
     stepCount: 5,
     updatedAt: '2026-10-10T14:47:00+05:30',
-    owner: mockUser.name,
+    owner: seedOwner,
   },
   {
     id: 'wf-reports',
@@ -56,7 +58,7 @@ const seedWorkflows: WorkflowSummary[] = [
     triggerLabel: 'Schedule',
     stepCount: 4,
     updatedAt: '2026-10-08T09:00:00+05:30',
-    owner: mockUser.name,
+    owner: seedOwner,
   },
 ];
 
@@ -160,9 +162,13 @@ export const mockClient: FlowForgeClient = {
     return loadStore().workflows.find((w) => w.id === id);
   },
 
-  async createWorkflow(name) {
+  async createWorkflow(name, graph?: unknown) {
     await latency();
     const store = loadStore();
+    const nodeCount =
+      graph && typeof graph === 'object' && Array.isArray((graph as { nodes?: unknown }).nodes)
+        ? (graph as { nodes: unknown[] }).nodes.length
+        : 0;
     const wf: WorkflowSummary = {
       id: `wf-${newId()}`,
       name,
@@ -170,9 +176,9 @@ export const mockClient: FlowForgeClient = {
       status: 'inactive',
       triggerKind: 'manual',
       triggerLabel: 'Manual Trigger',
-      stepCount: 0,
+      stepCount: nodeCount,
       updatedAt: new Date().toISOString(),
-      owner: mockUser.name,
+      owner: getMockUser().name,
     };
     store.workflows = [wf, ...store.workflows];
     saveStore(store);

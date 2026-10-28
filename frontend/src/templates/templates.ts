@@ -93,21 +93,68 @@ export const templates: AutomationTemplate[] = [
   {
     id: 'tpl-content',
     name: 'Content Pipeline',
-    description: 'Topics from Sheets, Tavily research, Ollama captions, stock images, approval check, then publish to Facebook.',
+    description: 'Topics from Google Sheets (or local content-calendar), Tavily research, Gemini captions, Unsplash images, then Facebook when Status is approved.',
     icon: Newspaper,
     color: '#10b981',
-    tags: ['Sheets', 'AI captions', 'Approval', 'Social'],
+    tags: ['Google Sheets', 'Gemini', 'Unsplash', 'Social'],
     nodes: [
-      { pluginType: 'trigger.schedule', label: 'Daily topics', config: { cron: '0 9 * * *', timezone: 'Asia/Kolkata' }, x: 0, y: 0 },
-      { pluginType: 'app.sheets.read', label: 'Fetch topics', config: { spreadsheetId: 'content-calendar-id', sheet: 'Topics', range: 'A1:F100' }, x: 0, y: 180 },
-      { pluginType: 'app.tavily.search', label: 'Research topic', config: { credential: 'tavily-key', query: '{{ steps.topics.topic }}', maxResults: 5 }, x: 0, y: 360 },
-      { pluginType: 'ai.ollama', label: 'Write captions', config: { endpoint: 'http://localhost:11434', model: 'llama3.1', prompt: 'Write Facebook, Instagram and LinkedIn captions for: {{ steps.topics.topic }}\nResearch: {{ steps.research.results }}' }, x: 0, y: 540 },
-      { pluginType: 'app.images.search', label: 'Find images', config: { provider: 'Pixabay', credential: 'pixabay-key', query: '{{ steps.topics.keywords }}' }, x: 0, y: 720 },
-      { pluginType: 'app.sheets.append', label: 'Save draft', config: { spreadsheetId: 'content-calendar-id', sheet: 'Drafts', values: '{ "Topic": "{{ steps.topics.topic }}", "Status": "Review" }' }, x: 0, y: 900 },
-      { pluginType: 'logic.if', label: 'Approved?', config: { left: '{{ steps.approval.status }}', operator: 'equals', right: 'approved' }, x: 0, y: 1080 },
-      { pluginType: 'app.facebook.post', label: 'Publish post', config: { credential: 'meta-token', pageId: '123456789', message: '{{ steps.captions.facebook }}', imageUrl: '{{ steps.images.url }}' }, x: -340, y: 1260 },
-      { pluginType: 'app.sheets.append', label: 'Mark published', config: { spreadsheetId: 'content-calendar-id', sheet: 'Drafts', values: '{ "Status": "Published" }' }, x: -340, y: 1440 },
-      { pluginType: 'app.slack.message', label: 'Revision needed', config: { channel: '#content', text: 'Draft needs revision: {{ steps.topics.topic }}' }, x: 340, y: 1260 },
+      { pluginType: 'trigger.schedule', label: 'Daily topics', config: { stepKey: 'schedule', cron: '0 9 * * *', timezone: 'Asia/Kolkata', activeFrom: '', activeUntil: '' }, x: 0, y: 0 },
+      // spreadsheetId blank → GOOGLE_SHEETS_SPREADSHEET_ID from .env; use content-calendar for Postgres fallback
+      { pluginType: 'app.sheets.read', label: 'Fetch topics', config: { stepKey: 'topics', spreadsheetId: '', sheet: 'Topics', range: 'A1:F100' }, x: 0, y: 180 },
+      { pluginType: 'app.tavily.search', label: 'Research topic', config: { stepKey: 'research', query: '{{ steps.topics.topic }}', maxResults: 5 }, x: 0, y: 360 },
+      {
+        pluginType: 'ai.gemini',
+        label: 'Write captions',
+        config: {
+          stepKey: 'captions',
+          model: 'gemini-flash-lite-latest',
+          prompt:
+            'Write Facebook, Instagram and LinkedIn captions as JSON only with keys {"facebook","instagram","linkedin"} for topic: {{ steps.topics.topic }}\nResearch: {{ steps.research.results }}',
+        },
+        x: 0,
+        y: 540,
+      },
+      { pluginType: 'app.images.search', label: 'Find images', config: { stepKey: 'images', provider: 'Unsplash', query: '{{ steps.topics.keywords }}' }, x: 0, y: 720 },
+      // Status "approved" → Facebook publish. Change to "pending" (or anything else) to hit Slack revision instead.
+      {
+        pluginType: 'app.sheets.append',
+        label: 'Save draft',
+        config: {
+          stepKey: 'draft',
+          spreadsheetId: '',
+          sheet: 'Drafts',
+          values:
+            '{ "Topic": "{{ steps.topics.topic }}", "Keywords": "{{ steps.topics.keywords }}", "Caption": "{{ steps.captions.facebook }}", "ImageUrl": "{{ steps.images.url }}", "Status": "approved" }',
+        },
+        x: 0,
+        y: 900,
+      },
+      { pluginType: 'logic.if', label: 'Approved?', config: { stepKey: 'approval', left: '{{ steps.draft.status }}', operator: 'equals', right: 'approved' }, x: 0, y: 1080 },
+      {
+        pluginType: 'app.facebook.post',
+        label: 'Publish post',
+        config: {
+          stepKey: 'publish',
+          pageId: '',
+          message: '{{ steps.captions.facebook }}',
+          imageUrl: '{{ steps.images.url }}',
+        },
+        x: -340,
+        y: 1260,
+      },
+      {
+        pluginType: 'app.sheets.append',
+        label: 'Mark published',
+        config: {
+          stepKey: 'published',
+          spreadsheetId: '',
+          sheet: 'Drafts',
+          values: '{ "Status": "Published", "Topic": "{{ steps.topics.topic }}", "ImageUrl": "{{ steps.images.url }}" }',
+        },
+        x: -340,
+        y: 1440,
+      },
+      { pluginType: 'app.slack.message', label: 'Revision needed', config: { stepKey: 'revision', channel: '#content', text: 'Draft needs revision: {{ steps.topics.topic }}' }, x: 340, y: 1260 },
     ],
     edges: [
       { from: 0, to: 1 },

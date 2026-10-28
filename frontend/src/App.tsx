@@ -4,6 +4,8 @@ import '@xyflow/react/dist/style.css'
 import './styles/reactflow.css'
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { flowGraphToCanvas } from './api/flowMapper'
+import { httpClient } from './api/httpClient'
 import { useWorkflow } from './api/query'
 import Canvas from './components/Canvas'
 import ConfigPanel from './components/ConfigPanel'
@@ -13,12 +15,27 @@ import { useWorkflowStore } from './store/workflowStore'
 export default function App() {
   const { workflowId } = useParams()
   const navigate = useNavigate()
-  const { openWorkflow } = useWorkflowStore.getState()
+  const { openWorkflow, seedCanvas } = useWorkflowStore.getState()
   const { data: workflow, isPending } = useWorkflow(workflowId)
 
   useEffect(() => {
-    if (workflowId) openWorkflow(workflowId)
-  }, [workflowId, openWorkflow])
+    if (!workflowId) return
+    openWorkflow(workflowId)
+    let cancelled = false
+    void (async () => {
+      const detail = await httpClient.getWorkflowDetail(workflowId)
+      if (cancelled || !detail?.graph) return
+      const local = useWorkflowStore.getState().canvases[workflowId]
+      const serverHasNodes = detail.graph.nodes.length > 0
+      const localEmpty = !local || local.nodes.length === 0
+      if (serverHasNodes && localEmpty) {
+        seedCanvas(workflowId, flowGraphToCanvas(detail.graph))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [workflowId, openWorkflow, seedCanvas])
 
   if (!isPending && workflowId && !workflow) {
     return (

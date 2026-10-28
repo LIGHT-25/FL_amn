@@ -32,6 +32,7 @@ enum NodeExecutionStatus {
 enum TriggerType {
   MANUAL
   WEBHOOK
+  SCHEDULE
 }
 
 model User {
@@ -154,4 +155,28 @@ model AuditEvent {
   createdAt    DateTime @default(now())
 
   @@index([userId])
+}
+
+/** Postgres-backed stand-in for Google Sheets (Content Pipeline calendar). */
+model ContentCalendar {
+  id            String               @id @default(uuid())
+  spreadsheetId String               @unique
+  title         String
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  rows          ContentCalendarRow[]
+}
+
+model ContentCalendarRow {
+  id         String          @id @default(uuid())
+  calendarId String
+  calendar   ContentCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  sheet      String
+  rowIndex   Int
+  data       Json
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([calendarId, sheet, rowIndex])
+  @@index([calendarId, sheet])
 }

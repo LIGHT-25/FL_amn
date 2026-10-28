@@ -1,28 +1,63 @@
 import { NODE_TYPES } from "@flowforge/shared";
+import { endNode } from "./end.js";
+import { facebookPostNode } from "./facebook.js";
+import { geminiNode } from "./gemini.js";
+import { ifNode } from "./ifNode.js";
+import { imagesSearchNode } from "./images.js";
+import { logNode } from "./log.js";
+import { manualTriggerNode } from "./manualTrigger.js";
+import { ollamaNode } from "./ollama.js";
+import { scheduleTriggerNode } from "./scheduleTrigger.js";
+import { sheetsAppendNode, sheetsReadNode } from "./sheets.js";
+import { slackMessageNode } from "./slack.js";
+import { tavilySearchNode } from "./tavily.js";
+import type { NodeDefinition } from "./types.js";
+
+export type { NodeDefinition, NodeExecutionContext, NodeExecutionResult, SafeLogEntry } from "./types.js";
+export { deepInterpolate, interpolate, interpolateJsonTemplate, slugStepKey } from "./interpolate.js";
+export {
+  looksLikeGoogleSpreadsheetId,
+  loadGoogleServiceAccount,
+  gridToObjects,
+  googleReadRows,
+  googleEnsureHeaderAndAppend,
+  googleListSheetTitles,
+  googleEnsureSheetTab,
+} from "./googleSheets.js";
 
 export type NodePaletteItem = {
   type: string;
   version: number;
   displayName: string;
-  category: "trigger" | "core" | "connector";
+  category: "trigger" | "core" | "connector" | "ai";
   description: string;
+  executable: boolean;
 };
 
-/** MVP palette metadata — runtime execute() implementations land in Weeks 7–13. */
-export const MVP_NODE_PALETTE: NodePaletteItem[] = [
-  {
-    type: NODE_TYPES.MANUAL_TRIGGER,
-    version: 1,
-    displayName: "Manual Trigger",
-    category: "trigger",
-    description: "Start a workflow from the UI or API",
-  },
+const EXECUTABLE: NodeDefinition[] = [
+  manualTriggerNode,
+  scheduleTriggerNode,
+  endNode,
+  logNode,
+  ifNode,
+  geminiNode,
+  ollamaNode,
+  sheetsReadNode,
+  sheetsAppendNode,
+  tavilySearchNode,
+  imagesSearchNode,
+  facebookPostNode,
+  slackMessageNode,
+];
+
+const PLACEHOLDER: NodePaletteItem[] = [
   {
     type: NODE_TYPES.WEBHOOK_TRIGGER,
     version: 1,
-    displayName: "Webhook Trigger",
+    displayName: "Webhook",
     category: "trigger",
     description: "Start a workflow from an HTTP webhook",
+    executable: false,
   },
   {
     type: NODE_TYPES.HTTP_REQUEST,
@@ -30,13 +65,7 @@ export const MVP_NODE_PALETTE: NodePaletteItem[] = [
     displayName: "HTTP Request",
     category: "core",
     description: "Call an external HTTP API",
-  },
-  {
-    type: NODE_TYPES.IF,
-    version: 1,
-    displayName: "IF / Else",
-    category: "core",
-    description: "Branch on a condition",
+    executable: false,
   },
   {
     type: NODE_TYPES.SET,
@@ -44,6 +73,7 @@ export const MVP_NODE_PALETTE: NodePaletteItem[] = [
     displayName: "Set / Transform",
     category: "core",
     description: "Map and transform JSON fields",
+    executable: false,
   },
   {
     type: NODE_TYPES.DELAY,
@@ -51,20 +81,7 @@ export const MVP_NODE_PALETTE: NodePaletteItem[] = [
     displayName: "Delay",
     category: "core",
     description: "Wait up to 60 seconds",
-  },
-  {
-    type: NODE_TYPES.LOG,
-    version: 1,
-    displayName: "Log / Debug",
-    category: "core",
-    description: "Write a value to execution logs",
-  },
-  {
-    type: NODE_TYPES.SLACK_SEND,
-    version: 1,
-    displayName: "Slack Message",
-    category: "connector",
-    description: "Post via Slack incoming webhook",
+    executable: false,
   },
   {
     type: NODE_TYPES.DISCORD_SEND,
@@ -72,6 +89,7 @@ export const MVP_NODE_PALETTE: NodePaletteItem[] = [
     displayName: "Discord Message",
     category: "connector",
     description: "Post via Discord webhook",
+    executable: false,
   },
   {
     type: NODE_TYPES.AIRTABLE_CREATE,
@@ -79,9 +97,29 @@ export const MVP_NODE_PALETTE: NodePaletteItem[] = [
     displayName: "Airtable Create Record",
     category: "connector",
     description: "Create a row in Airtable",
+    executable: false,
   },
+];
+
+const byType = new Map<string, NodeDefinition>(EXECUTABLE.map((n) => [n.type, n]));
+
+/** MVP palette — executable nodes first, then stubs still shown in /node-types. */
+export const MVP_NODE_PALETTE: NodePaletteItem[] = [
+  ...EXECUTABLE.map((n) => ({
+    type: n.type,
+    version: n.version,
+    displayName: n.displayName,
+    category: n.category,
+    description: n.description,
+    executable: true,
+  })),
+  ...PLACEHOLDER,
 ];
 
 export function listNodeTypes(): NodePaletteItem[] {
   return MVP_NODE_PALETTE;
+}
+
+export function getNodeDefinition(type: string): NodeDefinition | undefined {
+  return byType.get(type);
 }

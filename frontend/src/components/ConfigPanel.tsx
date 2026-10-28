@@ -28,7 +28,13 @@ function FieldInput({ field, value, onChange }: { field: PluginField; value: unk
   switch (field.type) {
     case 'textarea':
     case 'json': {
-      const invalid = field.type === 'json' && !isValidJson(value)
+      const text =
+        typeof value === 'string'
+          ? value
+          : value && typeof value === 'object'
+            ? JSON.stringify(value, null, 2)
+            : ''
+      const invalid = field.type === 'json' && !isValidJson(text)
       return (
         <textarea
           className={cn(
@@ -38,7 +44,7 @@ function FieldInput({ field, value, onChange }: { field: PluginField; value: unk
           )}
           rows={field.type === 'json' ? 4 : 6}
           placeholder={field.placeholder}
-          value={(value as string) ?? ''}
+          value={text}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
         />

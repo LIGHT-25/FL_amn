@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { getSession, login, signup } from '../auth/session'
 import { LOCAL_LOGOS, SERVICE_ORDER } from '../plugins/services'
 import { templates } from '../templates/templates'
 import { BranchMock, CanvasMock, FlowsMock, PickerMock, RunsMock, TemplatesMock } from './landing-mocks'
@@ -25,6 +26,12 @@ const LOGO_NAME: Record<string, string> = {
   zammad: 'Zammad',
   ollama: 'Ollama',
   gemini: 'Google Gemini',
+  unsplash: 'Unsplash',
+  tavily: 'Tavily',
+  slack: 'Slack',
+  linkedin: 'LinkedIn',
+  quickchart: 'QuickChart',
+  espocrm: 'EspoCRM',
 }
 
 const pieces = SERVICE_ORDER.filter((key) => !FRAMEWORK.has(key))
@@ -56,6 +63,8 @@ const features = [
     view: <PickerMock />,
   },
 ]
+
+type AuthMode = 'signin' | 'signup'
 
 function sample<T>(list: T[], count: number): T[] {
   if (list.length <= count) return list
@@ -119,10 +128,158 @@ function Mark({ src, name }: { src: string; name: string }) {
   )
 }
 
+function AuthPanel({ initialMode = 'signup' }: { initialMode?: AuthMode }) {
+  const navigate = useNavigate()
+  const [mode, setMode] = useState<AuthMode>(initialMode)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    setMode(initialMode)
+    setError(null)
+  }, [initialMode])
+
+  const switchMode = (next: AuthMode) => {
+    setMode(next)
+    setError(null)
+    setConfirm('')
+  }
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      if (mode === 'signup') {
+        if (password !== confirm) throw new Error('Passwords do not match.')
+        signup(email, password)
+      } else {
+        login(email, password)
+      }
+      navigate('/app', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form className="lf-auth" onSubmit={onSubmit} id="login">
+      <div className="lf-auth-tabs" role="tablist" aria-label="Account">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'signup'}
+          className={mode === 'signup' ? 'is-on' : undefined}
+          onClick={() => switchMode('signup')}
+        >
+          Sign up
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'signin'}
+          className={mode === 'signin' ? 'is-on' : undefined}
+          onClick={() => switchMode('signin')}
+        >
+          Sign in
+        </button>
+      </div>
+
+      <label className="lf-field">
+        <span>Email</span>
+        <input
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+        />
+      </label>
+
+      <label className="lf-field">
+        <span>{mode === 'signup' ? 'Create password' : 'Password'}</span>
+        <input
+          type="password"
+          autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          required
+          minLength={6}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="At least 6 characters"
+        />
+      </label>
+
+      {mode === 'signup' ? (
+        <label className="lf-field">
+          <span>Confirm password</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={6}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Re-enter password"
+          />
+        </label>
+      ) : null}
+
+      {error ? (
+        <p className="lf-auth-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <button type="submit" className="lf-btn lf-btn-lime lf-auth-submit" disabled={submitting}>
+        {submitting
+          ? mode === 'signup'
+            ? 'Creating account…'
+            : 'Signing in…'
+          : mode === 'signup'
+            ? 'Create account'
+            : 'Sign in'}
+      </button>
+
+      <p className="lf-auth-switch">
+        {mode === 'signup' ? (
+          <>
+            Already have an account?{' '}
+            <button type="button" onClick={() => switchMode('signin')}>
+              Sign in
+            </button>
+          </>
+        ) : (
+          <>
+            New here?{' '}
+            <button type="button" onClick={() => switchMode('signup')}>
+              Sign up
+            </button>
+          </>
+        )}
+      </p>
+    </form>
+  )
+}
+
 export default function Landing() {
   useReveal()
+  const existing = getSession()
+  const [authMode, setAuthMode] = useState<AuthMode>('signup')
   const loop = [...marks, ...marks]
   const useCases = [...templates, ...templates]
+
+  if (existing) {
+    return <Navigate to="/app" replace />
+  }
+
+  const goAuth = (mode: AuthMode) => {
+    setAuthMode(mode)
+  }
 
   return (
     <div className="lf">
@@ -138,12 +295,12 @@ export default function Landing() {
           <a href="#runs">Runs</a>
         </nav>
         <div className="lf-nav-actions">
-          <Link className="lf-btn lf-btn-ghost" to="/app">
-            Login
-          </Link>
-          <Link className="lf-btn lf-btn-lime" to="/app">
-            Open app
-          </Link>
+          <a className="lf-btn lf-btn-ghost" href="#login" onClick={() => goAuth('signin')}>
+            Sign in
+          </a>
+          <a className="lf-btn lf-btn-lime" href="#login" onClick={() => goAuth('signup')}>
+            Sign up
+          </a>
         </div>
       </header>
 
@@ -167,9 +324,9 @@ export default function Landing() {
             Canvas, step library, and a run log. Self-hosted.
           </p>
           <p className="lf-hero-cta lf-line" style={{ ['--i' as string]: 4 }}>
-            <Link className="lf-btn lf-btn-light" to="/app">
-              Open the app
-            </Link>
+            <a className="lf-btn lf-btn-light" href="#login" onClick={() => goAuth('signup')}>
+              Create account
+            </a>
           </p>
         </div>
 
@@ -296,16 +453,34 @@ export default function Landing() {
         <section className="lf-close reveal">
           <div className="lf-close-copy">
             <h2 style={{ textAlign: 'left', margin: 0 }}>Open the builder.</h2>
-            <p>The canvas, the automation list, and the run log are in the app.</p>
-            <Link className="lf-btn lf-btn-light" to="/app">
-              Open the app
-            </Link>
+            <p>Sign up with email and password, then open the canvas, templates, and run log.</p>
+            <a className="lf-btn lf-btn-light" href="#login" onClick={() => goAuth('signup')}>
+              Create account
+            </a>
           </div>
           <div className="lf-close-visual">
             <FlowsMock />
           </div>
         </section>
       </div>
+
+      <section className="lf-section lf-auth-section">
+        <div className="lf-eyebrow">
+          <span className="lf-pill">
+            <i />
+            Account
+          </span>
+        </div>
+        <h2>{authMode === 'signup' ? 'Create your account' : 'Welcome back'}</h2>
+        <p className="lf-center-sub">
+          {authMode === 'signup'
+            ? 'Choose an email and password. Use them to sign in next time.'
+            : 'Sign in with the email and password you set when you signed up.'}
+        </p>
+        <div className="lf-auth-wrap reveal">
+          <AuthPanel key={authMode} initialMode={authMode} />
+        </div>
+      </section>
 
       <footer className="lf-footer">
         <div>
@@ -316,7 +491,9 @@ export default function Landing() {
           <p className="lf-copy">© 2026 FlowForge</p>
         </div>
         <nav aria-label="Footer">
-          <Link to="/app">Open app</Link>
+          <a href="#login" onClick={() => goAuth('signin')}>
+            Sign in
+          </a>
           <a href="#product">Product</a>
           <a href="#use-cases">Use cases</a>
           <a href="#pieces">Pieces</a>

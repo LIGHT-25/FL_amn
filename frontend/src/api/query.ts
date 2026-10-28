@@ -27,7 +27,10 @@ export function useWorkflow(id: string | undefined) {
 export function useCreateWorkflow() {
   const invalidate = useInvalidateWorkflows();
   return useMutation({
-    mutationFn: (name: string) => client.createWorkflow(name),
+    mutationFn: (input: string | { name: string; graph?: unknown }) =>
+      typeof input === 'string'
+        ? client.createWorkflow(input)
+        : client.createWorkflow(input.name, input.graph),
     onSuccess: invalidate,
   });
 }
@@ -54,11 +57,15 @@ function useInvalidateWorkflows() {
 }
 
 export function useSetWorkflowStatus() {
+  const qc = useQueryClient();
   const invalidate = useInvalidateWorkflows();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: WorkflowStatus }) =>
       client.setWorkflowStatus(id, status),
-    onSuccess: invalidate,
+    onSuccess: (_wf, { id }) => {
+      invalidate();
+      void qc.invalidateQueries({ queryKey: [...workflowKey, id] });
+    },
   });
 }
 

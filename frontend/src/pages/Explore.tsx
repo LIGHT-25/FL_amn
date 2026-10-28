@@ -1,8 +1,10 @@
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { useWorkflowStore } from '../store/workflowStore';
+import { canvasToFlowGraph } from '../api/flowMapper';
 import { useCreateWorkflow } from '../api/query';
+import { alertDialog } from '../dialog/api';
+import { useWorkflowStore } from '../store/workflowStore';
 import { buildTemplateCanvas, templates } from '../templates/templates';
 
 export default function Explore() {
@@ -13,12 +15,29 @@ export default function Explore() {
   const applyTemplate = (tplId: string) => {
     const tpl = templates.find((t) => t.id === tplId);
     if (!tpl) return;
-    create.mutate(tpl.name, {
-      onSuccess: (wf) => {
-        seedCanvas(wf.id, buildTemplateCanvas(tpl));
-        navigate(`/app/editor/${wf.id}`);
+    const snapshot = buildTemplateCanvas(tpl);
+    const graph = canvasToFlowGraph(snapshot.nodes, snapshot.edges);
+    create.mutate(
+      { name: tpl.name, graph },
+      {
+        onSuccess: (wf) => {
+          seedCanvas(wf.id, snapshot);
+          navigate(`/app/editor/${wf.id}`);
+        },
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          const offline =
+            /failed to fetch|networkerror|econnrefused|http 5\d\d/i.test(message) ||
+            message === 'Failed to fetch';
+          void alertDialog({
+            title: 'Could not open template',
+            body: offline
+              ? 'The API server is not reachable. Start it with `pnpm --filter @flowforge/api dev` (port 3001), then try again.'
+              : message,
+          });
+        },
       },
-    });
+    );
   };
 
   return (

@@ -32,6 +32,9 @@ importers:
       '@flowforge/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      croner:
+        specifier: ^11.0.0
+        version: 11.0.0
       fastify:
         specifier: ^5.2.1
         version: 5.12.4
@@ -104,6 +107,9 @@ importers:
 
   packages/engine:
     dependencies:
+      '@flowforge/nodes':
+        specifier: workspace:*
+        version: link:../nodes
       '@flowforge/shared':
         specifier: workspace:*
         version: link:../shared
@@ -117,9 +123,9 @@ importers:
 
   packages/nodes:
     dependencies:
-      '@flowforge/engine':
+      '@flowforge/db':
         specifier: workspace:*
-        version: link:../engine
+        version: link:../db
       '@flowforge/shared':
         specifier: workspace:*
         version: link:../shared
@@ -127,6 +133,9 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.20.2
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
@@ -932,6 +941,10 @@ packages:
   cookie@1.1.1:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
+
+  croner@11.0.0:
+    resolution: {integrity: sha512-T17ADjdttrVToyzLpLq9Xb9xzcMwpQ/M3Qs9szhh0MVNTbv6NWQ9OFYa2qlzPYXFMn+uoDlnW1IpIv6cAvFtyA==}
+    engines: {node: '>=18.0'}
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -2053,6 +2066,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   cookie@1.1.1: {}
+
+  croner@11.0.0: {}
 
   csstype@3.2.3: {}
 

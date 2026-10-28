@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import App from './App.tsx';
 import { queryClient } from './api/query';
+import RequireAuth from './auth/RequireAuth.tsx';
 import { DialogHost } from './dialog/dialog.tsx';
 import './index.css';
 import Chat from './pages/Chat.tsx';
@@ -22,7 +23,14 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/app" element={<AppShell />}>
+          <Route
+            path="/app"
+            element={
+              <RequireAuth>
+                <AppShell />
+              </RequireAuth>
+            }
+          >
             <Route index element={<ProjectDashboard />} />
             <Route path="chat" element={<Chat />} />
             <Route path="explore" element={<Explore />} />
@@ -32,7 +40,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="editor" element={<Navigate to="/app" replace />} />
             <Route path="editor/:workflowId" element={<App />} />
           </Route>
-          <Route path="*" element={<Navigate to="/app" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
