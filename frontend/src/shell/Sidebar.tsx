@@ -33,8 +33,7 @@ export default function Sidebar({ open, onToggle }: { open: boolean; onToggle: (
   const user = getMockUser();
 
   const signOut = () => {
-    logout();
-    navigate('/', { replace: true });
+    void logout().finally(() => navigate('/', { replace: true }));
   };
 
   return (

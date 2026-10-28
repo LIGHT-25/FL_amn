@@ -93,14 +93,14 @@ export const templates: AutomationTemplate[] = [
   {
     id: 'tpl-content',
     name: 'Content Pipeline',
-    description: 'Topics from Google Sheets (or local content-calendar), Tavily research, Gemini captions, Unsplash images, then Facebook when Status is approved.',
+    description: 'Topics from the local content-calendar, Tavily research, Gemini captions, Unsplash images, then Facebook when Status is approved. Demo mode always uses Postgres content-calendar (no Google SA required).',
     icon: Newspaper,
     color: '#10b981',
     tags: ['Google Sheets', 'Gemini', 'Unsplash', 'Social'],
     nodes: [
       { pluginType: 'trigger.schedule', label: 'Daily topics', config: { stepKey: 'schedule', cron: '0 9 * * *', timezone: 'Asia/Kolkata', activeFrom: '', activeUntil: '' }, x: 0, y: 0 },
-      // spreadsheetId blank → GOOGLE_SHEETS_SPREADSHEET_ID from .env; use content-calendar for Postgres fallback
-      { pluginType: 'app.sheets.read', label: 'Fetch topics', config: { stepKey: 'topics', spreadsheetId: '', sheet: 'Topics', range: 'A1:F100' }, x: 0, y: 180 },
+      // Explicit local calendar — never inherit GOOGLE_SHEETS_SPREADSHEET_ID on the shared demo.
+      { pluginType: 'app.sheets.read', label: 'Fetch topics', config: { stepKey: 'topics', spreadsheetId: 'content-calendar', sheet: 'Topics', range: 'A1:F100' }, x: 0, y: 180 },
       { pluginType: 'app.tavily.search', label: 'Research topic', config: { stepKey: 'research', query: '{{ steps.topics.topic }}', maxResults: 5 }, x: 0, y: 360 },
       {
         pluginType: 'ai.gemini',
@@ -121,7 +121,7 @@ export const templates: AutomationTemplate[] = [
         label: 'Save draft',
         config: {
           stepKey: 'draft',
-          spreadsheetId: '',
+          spreadsheetId: 'content-calendar',
           sheet: 'Drafts',
           values:
             '{ "Topic": "{{ steps.topics.topic }}", "Keywords": "{{ steps.topics.keywords }}", "Caption": "{{ steps.captions.facebook }}", "ImageUrl": "{{ steps.images.url }}", "Status": "approved" }',
@@ -147,7 +147,7 @@ export const templates: AutomationTemplate[] = [
         label: 'Mark published',
         config: {
           stepKey: 'published',
-          spreadsheetId: '',
+          spreadsheetId: 'content-calendar',
           sheet: 'Drafts',
           values: '{ "Status": "Published", "Topic": "{{ steps.topics.topic }}", "ImageUrl": "{{ steps.images.url }}" }',
         },

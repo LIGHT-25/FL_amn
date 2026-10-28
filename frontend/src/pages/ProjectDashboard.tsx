@@ -29,6 +29,7 @@ import type { Edge } from '@xyflow/react';
 import { useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ExecutionStatus, TriggerKind, WorkflowSummary } from '../api/client';
+import { canvasToFlowGraph } from '../api/flowMapper';
 import { alertDialog, confirmDialog, promptDialog } from '../dialog/api';
 import {
   useCreateWorkflow,
@@ -42,6 +43,7 @@ import {
 } from '../api/query';
 import type { WorkflowNode } from '../store/workflowStore';
 import { useWorkflowStore } from '../store/workflowStore';
+import { buildTemplateCanvas, templates } from '../templates/templates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -211,6 +213,28 @@ function AutomationsPanel() {
     create.mutate('Untitled', { onSuccess: (wf) => navigate(`/app/editor/${wf.id}`) });
   };
 
+  const onCreateContentPipeline = () => {
+    const tpl = templates.find((t) => t.id === 'tpl-content');
+    if (!tpl) return;
+    const snapshot = buildTemplateCanvas(tpl);
+    const graph = canvasToFlowGraph(snapshot.nodes, snapshot.edges);
+    create.mutate(
+      { name: tpl.name, graph },
+      {
+        onSuccess: (wf) => {
+          seedCanvas(wf.id, snapshot);
+          navigate(`/app/editor/${wf.id}`);
+        },
+        onError: (err) => {
+          void alertDialog({
+            title: 'Could not create template',
+            body: err instanceof Error ? err.message : String(err),
+          });
+        },
+      },
+    );
+  };
+
   const onImportFile = async (f: File) => {
     try {
       const parsed = JSON.parse(await f.text()) as { name?: string; nodes?: WorkflowNode[]; edges?: Edge[] };
@@ -295,6 +319,26 @@ function AutomationsPanel() {
         <div className="mb-2.5 flex items-center gap-3 text-[13px] text-muted">
           <span>{selected.length} selected</span>
           <button className={linkBtn} onClick={() => setSelected([])}>Clear</button>
+        </div>
+      )}
+
+      {data.length === 0 && (
+        <div className="mb-4 flex flex-col items-start gap-3 rounded-[10px] border border-dashed border-lime-700/50 bg-lime-950/20 px-5 py-6">
+          <div>
+            <h2 className="m-0 text-[16px] font-semibold text-ink">Start with Content Pipeline</h2>
+            <p className="m-0 mt-1 max-w-xl text-[13.5px] text-muted">
+              One-click starter: research a topic, draft a caption with Gemini, find an image, and publish.
+              Uses the shared platform keys on this demo.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            disabled={create.isPending}
+            onClick={onCreateContentPipeline}
+            className="bg-lime-400 text-stone-950 hover:bg-lime-300 font-semibold h-9"
+          >
+            Create Content Pipeline
+          </Button>
         </div>
       )}
 
@@ -540,7 +584,7 @@ export default function ProjectDashboard() {
           <Plug size={26} />
           <h2 className="m-0 mt-1.5 text-[17px] text-ink">No connections yet</h2>
           <p className="m-0 max-w-[420px] text-[13.5px]">
-            App credentials (Gmail, Slack, Sheets…) plug in here once the backend lands.
+            This shared demo uses platform API keys from the server environment. Per-user credential vaults are out of scope for the demo.
           </p>
         </div>
       )}

@@ -28,8 +28,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Full stack profiles (api/web images) added when Dockerfiles land in Week 17.
-  # Until then: use Compose for postgres/redis + `pnpm dev` for apps.
+  # Full stack (api + web + postgres): see docker-compose.prod.yml and docs/demo-deploy.md.
 
 volumes:
   flowforge_pg:

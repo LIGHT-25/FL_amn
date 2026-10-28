@@ -17,12 +17,14 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
+    "seed:local": "tsx --env-file=../../.env prisma/seed.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "lint": "echo \"lint pending\""
   },
   "dependencies": {
-    "@prisma/client": "^6.5.0"
+    "@prisma/client": "^6.5.0",
+    "argon2": "^0.45.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

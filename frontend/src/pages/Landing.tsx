@@ -152,18 +152,20 @@ function AuthPanel({ initialMode = 'signup' }: { initialMode?: AuthMode }) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
-    try {
-      if (mode === 'signup') {
-        if (password !== confirm) throw new Error('Passwords do not match.')
-        signup(email, password)
-      } else {
-        login(email, password)
+    void (async () => {
+      try {
+        if (mode === 'signup') {
+          if (password !== confirm) throw new Error('Passwords do not match.')
+          await signup(email, password)
+        } else {
+          await login(email, password)
+        }
+        navigate('/app', { replace: true })
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Something went wrong.')
+        setSubmitting(false)
       }
-      navigate('/app', { replace: true })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-      setSubmitting(false)
-    }
+    })()
   }
 
   return (

@@ -4,6 +4,7 @@ dist
 .turbo
 .env
 .env.local
+.env.prod
 google-sa.json
 *-sa.json
 *.log

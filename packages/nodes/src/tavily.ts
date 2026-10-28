@@ -20,7 +20,7 @@ export const tavilySearchNode: NodeDefinition = {
     const maxResults = asNumber(ctx.config.maxResults, 5);
     const apiKey = requireSecret({
       label: "Tavily API key",
-      value: resolveSecret(ctx.config.credential, ctx.env.TAVILY_API_KEY, ["", "tavily-key"]),
+      value: resolveSecret(ctx.config.credential, ctx.env.TAVILY_API_KEY, ["", "tavily-key"], ctx.env),
       env: ctx.env,
       hint: "Set TAVILY_API_KEY in .env",
     });

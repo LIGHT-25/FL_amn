@@ -1,0 +1,13 @@
+# Railway: deploy API from monorepo root Dockerfile.
+# Web SPA is a second service (frontend/Dockerfile) or served via nginx proxying /api.
+# Create Postgres plugin in the same project and set DATABASE_URL from it.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/api/Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

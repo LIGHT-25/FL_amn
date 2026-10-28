@@ -7,16 +7,17 @@ import {
   looksLikeGoogleSpreadsheetId,
 } from "./googleSheets.js";
 import { asString, deepInterpolate, interpolateJsonTemplate } from "./interpolate.js";
-import { connectorStrict, sheetsMock } from "./strict.js";
+import { demoMode, sheetsMock } from "./strict.js";
 import type { NodeDefinition } from "./types.js";
 
 const SAMPLE_TOPICS = [
-  { Topic: "AI workflow automation trends", Keywords: "ai, automation, no-code" },
-  { Topic: "Customer support with LLMs", Keywords: "support, llm, triage" },
-  { Topic: "Meeting notes that write themselves", Keywords: "meetings, summary, productivity" },
+  { Topic: "AI workflow automation trends", Keywords: "ai, automation, no-code", Status: "pending" },
+  { Topic: "Customer support with LLMs", Keywords: "support, llm, triage", Status: "pending" },
+  { Topic: "Meeting notes that write themselves", Keywords: "meetings, summary, productivity", Status: "pending" },
 ];
 
 const LOCAL_CALENDAR_KEYS = new Set(["content-calendar", "sales-sheet-id", "meetings-sheet-id"]);
+const DEMO_CALENDAR_ID = "content-calendar";
 
 function rowFields(data: unknown): Record<string, unknown> {
   if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -49,33 +50,62 @@ function chooseTopicRow(rows: Record<string, unknown>[]): Record<string, unknown
   return pending ?? rows[0]!;
 }
 
-function resolveSpreadsheetId(
+type SheetsTarget = {
+  spreadsheetId: string;
+  backend: "mock" | "google" | "postgres";
+  /** True when a Google Sheet ID was remapped to the local calendar. */
+  remappedFromGoogleId?: string;
+};
+
+/**
+ * Pick spreadsheet id + backend. Demo / missing Google SA always land on
+ * Postgres `content-calendar` so shared demos never die on Sheet credentials.
+ */
+function resolveSheetsTarget(
   configValue: unknown,
   env: Record<string, string | undefined>,
-): string {
-  return (
-    asString(configValue).trim() ||
-    env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim() ||
-    "content-calendar"
-  );
+): SheetsTarget {
+  if (sheetsMock(env)) {
+    return { spreadsheetId: DEMO_CALENDAR_ID, backend: "mock" };
+  }
+
+  if (demoMode(env)) {
+    return { spreadsheetId: DEMO_CALENDAR_ID, backend: "postgres" };
+  }
+
+  const configured =
+    asString(configValue).trim() || env.GOOGLE_SHEETS_SPREADSHEET_ID?.trim() || DEMO_CALENDAR_ID;
+
+  if (LOCAL_CALENDAR_KEYS.has(configured) || !looksLikeGoogleSpreadsheetId(configured)) {
+    return { spreadsheetId: configured, backend: "postgres" };
+  }
+
+  if (loadGoogleServiceAccount(env)) {
+    return { spreadsheetId: configured, backend: "google" };
+  }
+
+  // Google ID present but no service account → local calendar (never hard-fail demos).
+  return {
+    spreadsheetId: DEMO_CALENDAR_ID,
+    backend: "postgres",
+    remappedFromGoogleId: configured,
+  };
 }
 
-function resolveBackend(
-  spreadsheetId: string,
-  env: Record<string, string | undefined>,
-): "mock" | "google" | "postgres" {
-  if (sheetsMock(env)) return "mock";
-  if (LOCAL_CALENDAR_KEYS.has(spreadsheetId) || !looksLikeGoogleSpreadsheetId(spreadsheetId)) {
-    return "postgres";
-  }
-  const account = loadGoogleServiceAccount(env);
-  if (account) return "google";
-  if (connectorStrict(env)) {
-    throw new Error(
-      `Spreadsheet "${spreadsheetId}" looks like a Google Sheet ID, but no service account is configured. Set GOOGLE_SERVICE_ACCOUNT_JSON (or EMAIL + PRIVATE_KEY) in .env and share the sheet with that service-account email as Editor.`,
-    );
-  }
-  return "postgres";
+async function ensureTopicSeed(calendarId: string, sheet: string): Promise<void> {
+  if (sheet !== "Topics") return;
+  const count = await prisma.contentCalendarRow.count({
+    where: { calendarId, sheet },
+  });
+  if (count > 0) return;
+  await prisma.contentCalendarRow.createMany({
+    data: SAMPLE_TOPICS.map((data, rowIndex) => ({
+      calendarId,
+      sheet,
+      rowIndex,
+      data,
+    })),
+  });
 }
 
 async function ensureCalendar(spreadsheetId: string) {
@@ -127,10 +157,19 @@ export const sheetsReadNode: NodeDefinition = {
   category: "connector",
   description: "Fetch rows from Google Sheets or the local content calendar",
   async execute(ctx) {
-    const spreadsheetId = resolveSpreadsheetId(ctx.config.spreadsheetId, ctx.env);
+    const target = resolveSheetsTarget(ctx.config.spreadsheetId, ctx.env);
+    const { spreadsheetId, backend } = target;
     const sheet = asString(ctx.config.sheet, "Sheet1");
     const range = asString(ctx.config.range, "A1:Z1000");
-    const backend = resolveBackend(spreadsheetId, ctx.env);
+    const remapLog = target.remappedFromGoogleId
+      ? [
+          {
+            level: "warn" as const,
+            message: `No Google service account configured for "${target.remappedFromGoogleId}" — using local Postgres calendar "${DEMO_CALENDAR_ID}" instead.`,
+            at: ctx.now().toISOString(),
+          },
+        ]
+      : [];
 
     if (backend === "mock") {
       const rows = SAMPLE_TOPICS;
@@ -147,6 +186,7 @@ export const sheetsReadNode: NodeDefinition = {
           mocked: true,
         },
         logs: [
+          ...remapLog,
           {
             level: "warn",
             message: `Sheets read mocked (${rows.length} sample rows from ${sheet}!${range})`,
@@ -194,6 +234,7 @@ export const sheetsReadNode: NodeDefinition = {
     }
 
     const calendar = await ensureCalendar(spreadsheetId);
+    await ensureTopicSeed(calendar.id, sheet);
     const dbRows = await prisma.contentCalendarRow.findMany({
       where: { calendarId: calendar.id, sheet },
       orderBy: { rowIndex: "asc" },
@@ -221,6 +262,7 @@ export const sheetsReadNode: NodeDefinition = {
         mocked: false,
       },
       logs: [
+        ...remapLog,
         {
           level: "info",
           message: `Local calendar read ${rows.length} row(s) from ${spreadsheetId}/${sheet}; using topic "${topic}"`,
@@ -244,11 +286,20 @@ export const sheetsAppendNode: NodeDefinition = {
       steps: ctx.steps,
       now: ctx.now().toISOString(),
     };
-    const spreadsheetId = resolveSpreadsheetId(ctx.config.spreadsheetId, ctx.env);
+    const target = resolveSheetsTarget(ctx.config.spreadsheetId, ctx.env);
+    const { spreadsheetId, backend } = target;
     const sheet = asString(ctx.config.sheet, "Sheet1");
     const values = parseAppendValues(ctx.config.values, interp);
     const status = pickStatus(values);
-    const backend = resolveBackend(spreadsheetId, ctx.env);
+    const remapLog = target.remappedFromGoogleId
+      ? [
+          {
+            level: "warn" as const,
+            message: `No Google service account configured for "${target.remappedFromGoogleId}" — using local Postgres calendar "${DEMO_CALENDAR_ID}" instead.`,
+            at: ctx.now().toISOString(),
+          },
+        ]
+      : [];
 
     if (backend === "mock") {
       return {
@@ -263,6 +314,7 @@ export const sheetsAppendNode: NodeDefinition = {
           mocked: true,
         },
         logs: [
+          ...remapLog,
           {
             level: "warn",
             message: `Sheets append mocked → ${sheet}: ${JSON.stringify(values)}`,
@@ -333,6 +385,7 @@ export const sheetsAppendNode: NodeDefinition = {
         mocked: false,
       },
       logs: [
+        ...remapLog,
         {
           level: "info",
           message: `Local calendar append → ${spreadsheetId}/${sheet} row ${created.rowIndex} (status=${status})`,

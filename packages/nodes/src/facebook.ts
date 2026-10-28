@@ -1,6 +1,6 @@
 import { NODE_TYPES } from "@flowforge/shared";
 import { asString, interpolate } from "./interpolate.js";
-import { connectorStrict, requireSecret, resolveSecret } from "./strict.js";
+import { connectorStrict, publishEnabled, requireSecret, resolveSecret } from "./strict.js";
 import type { NodeDefinition } from "./types.js";
 
 type PageAccount = { id: string; name?: string; access_token: string };
@@ -80,6 +80,37 @@ export const facebookPostNode: NodeDefinition = {
   category: "connector",
   description: "Publish to a Facebook Page via Graph API",
   async execute(ctx) {
+    if (!publishEnabled(ctx.env)) {
+      const message = interpolate(asString(ctx.config.message), {
+        input: ctx.input,
+        trigger: ctx.trigger,
+        steps: ctx.steps,
+        now: ctx.now().toISOString(),
+      });
+      const imageUrl = interpolate(asString(ctx.config.imageUrl), {
+        input: ctx.input,
+        trigger: ctx.trigger,
+        steps: ctx.steps,
+        now: ctx.now().toISOString(),
+      });
+      return {
+        output: {
+          id: `demo_skip_fb_${ctx.now().getTime()}`,
+          message,
+          imageUrl,
+          mocked: true,
+          skippedPublish: true,
+        },
+        logs: [
+          {
+            level: "warn",
+            message:
+              "Facebook publish skipped on the public demo (DEMO_PUBLISH_ENABLED=false). Earlier steps still ran.",
+            at: ctx.now().toISOString(),
+          },
+        ],
+      };
+    }
     const interp = {
       input: ctx.input,
       trigger: ctx.trigger,
@@ -90,12 +121,13 @@ export const facebookPostNode: NodeDefinition = {
       ctx.config.pageId,
       ctx.env.FACEBOOK_PAGE_ID,
       ["", "123456789", "mock-page"],
+      ctx.env,
     );
     const message = interpolate(asString(ctx.config.message), interp);
     const imageUrl = interpolate(asString(ctx.config.imageUrl), interp);
     const token = requireSecret({
       label: "Facebook Page token",
-      value: resolveSecret(ctx.config.credential, ctx.env.FACEBOOK_PAGE_TOKEN, ["", "meta-token"]),
+      value: resolveSecret(ctx.config.credential, ctx.env.FACEBOOK_PAGE_TOKEN, ["", "meta-token"], ctx.env),
       env: ctx.env,
       hint: "Set FACEBOOK_PAGE_TOKEN (Page access token with pages_manage_posts) and FACEBOOK_PAGE_ID in .env",
     });

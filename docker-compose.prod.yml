@@ -1,0 +1,80 @@
+# Production-style stack for the shared hosted demo.
+# From repo root:
+#   docker compose -p flowforge-demo -f docker-compose.prod.yml --env-file .env.prod up -d --build
+name: flowforge-demo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowforge}
+      POSTGRES_DB: ${POSTGRES_DB:-flowforge}
+    volumes:
+      - flowforge_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowforge} -d ${POSTGRES_DB:-flowforge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flowforge}:${POSTGRES_PASSWORD:-flowforge}@postgres:5432/${POSTGRES_DB:-flowforge}
+      API_PORT: 3001
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      ALLOW_DEV_USER: "false"
+      DEMO_MODE: ${DEMO_MODE:-true}
+      DEMO_PUBLISH_ENABLED: ${DEMO_PUBLISH_ENABLED:-false}
+      DEMO_MAX_RUNS_PER_DAY: ${DEMO_MAX_RUNS_PER_DAY:-20}
+      DEMO_MAX_WORKFLOWS: ${DEMO_MAX_WORKFLOWS:-15}
+      DEMO_MAX_ACTIVE_SCHEDULES: ${DEMO_MAX_ACTIVE_SCHEDULES:-2}
+      DEMO_MIN_SCHEDULE_MINUTES: ${DEMO_MIN_SCHEDULE_MINUTES:-15}
+      RUN_SEED: ${RUN_SEED:-true}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-demo-flowforge}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      FACEBOOK_PAGE_TOKEN: ${FACEBOOK_PAGE_TOKEN:-}
+      FACEBOOK_PAGE_ID: ${FACEBOOK_PAGE_ID:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      CONNECTOR_STRICT: ${CONNECTOR_STRICT:-true}
+      SHEETS_MOCK: ${SHEETS_MOCK:-false}
+      GOOGLE_SHEETS_SPREADSHEET_ID: ${GOOGLE_SHEETS_SPREADSHEET_ID:-}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  flowforge_pg_prod:

@@ -1,0 +1,66 @@
+# Render Blueprint — https://dashboard.render.com/blueprints
+# Connect this GitHub repo and apply. Set secret env vars in the dashboard
+# (GEMINI_API_KEY, TAVILY_API_KEY, UNSPLASH_ACCESS_KEY, JWT_*).
+
+databases:
+  - name: flowforge-demo-db
+    plan: free
+    databaseName: flowforge
+    user: flowforge
+
+services:
+  - type: web
+    name: flowforge-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: flowforge-demo-db
+          property: connectionString
+      - key: API_PORT
+        value: "3001"
+      - key: ALLOW_DEV_USER
+        value: "false"
+      - key: DEMO_MODE
+        value: "true"
+      - key: DEMO_PUBLISH_ENABLED
+        value: "false"
+      - key: RUN_SEED
+        value: "true"
+      - key: DEMO_MAX_RUNS_PER_DAY
+        value: "20"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CREDENTIALS_ENCRYPTION_KEY
+        generateValue: true
+      - key: WEB_ORIGIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: UNSPLASH_ACCESS_KEY
+        sync: false
+      - key: DEMO_USER_PASSWORD
+        value: demo-flowforge
+
+  - type: web
+    name: flowforge-web
+    runtime: docker
+    plan: free
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # After first deploy: set VITE_API_URL=https://<flowforge-api>.onrender.com
+    # and on the API set WEB_ORIGIN=https://<flowforge-web>.onrender.com, then rebuild web.
+    envVars:
+      - key: VITE_API_URL
+        sync: false

@@ -1,6 +1,6 @@
 import { NODE_TYPES } from "@flowforge/shared";
 import { asString, interpolate } from "./interpolate.js";
-import { connectorStrict, requireSecret, resolveSecret } from "./strict.js";
+import { connectorStrict, publishEnabled, requireSecret, resolveSecret } from "./strict.js";
 import type { NodeDefinition } from "./types.js";
 
 export const slackMessageNode: NodeDefinition = {
@@ -10,6 +10,25 @@ export const slackMessageNode: NodeDefinition = {
   category: "connector",
   description: "Post to Slack via incoming webhook",
   async execute(ctx) {
+    if (!publishEnabled(ctx.env)) {
+      const channel = asString(ctx.config.channel, "#general");
+      const text = interpolate(asString(ctx.config.text), {
+        input: ctx.input,
+        trigger: ctx.trigger,
+        steps: ctx.steps,
+        now: ctx.now().toISOString(),
+      });
+      return {
+        output: { channel, text, ok: true, mocked: true, skippedPublish: true },
+        logs: [
+          {
+            level: "warn",
+            message: `Slack publish skipped on the public demo (DEMO_PUBLISH_ENABLED=false). Would have posted to ${channel}.`,
+            at: ctx.now().toISOString(),
+          },
+        ],
+      };
+    }
     const interp = {
       input: ctx.input,
       trigger: ctx.trigger,
@@ -20,7 +39,7 @@ export const slackMessageNode: NodeDefinition = {
     const text = interpolate(asString(ctx.config.text), interp);
     const webhook = requireSecret({
       label: "Slack webhook URL",
-      value: resolveSecret(undefined, ctx.env.SLACK_WEBHOOK_URL, [""]),
+      value: resolveSecret(undefined, ctx.env.SLACK_WEBHOOK_URL, [""], ctx.env),
       env: ctx.env,
       hint: "Set SLACK_WEBHOOK_URL in .env",
     });

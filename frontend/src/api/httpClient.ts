@@ -1,3 +1,4 @@
+import { clearSession, getAccessToken, refreshSession } from '../auth/session'
 import type {
   ExecutionSummary,
   FlowForgeClient,
@@ -9,14 +10,30 @@ import type {
 // Set VITE_API_URL only when the UI must talk to the API directly.
 const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '')
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> | undefined),
+  }
+  const token = getAccessToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    credentials: 'include',
+    headers,
   })
+
+  if (res.status === 401 && !retried && !path.startsWith('/api/v1/auth/')) {
+    const ok = await refreshSession()
+    if (ok) return request<T>(path, init, true)
+    clearSession()
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/app')) {
+      window.location.assign('/')
+    }
+    throw new Error('Session expired. Sign in again.')
+  }
+
   if (res.status === 204) return undefined as T
   const body = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -49,10 +66,23 @@ export type WorkflowDetail = WorkflowSummary & {
 
 export type FlowGraphPayload = NonNullable<WorkflowDetail['graph']>
 
+export type QuotaSnapshot = {
+  runsToday: number
+  runsLimit: number
+  runsRemaining: number
+  workflows: number
+  workflowsLimit: number
+  activeSchedules: number
+  activeSchedulesLimit: number
+  demoMode: boolean
+  publishEnabled: boolean
+}
+
 export const httpClient: FlowForgeClient & {
   getWorkflowDetail(id: string): Promise<WorkflowDetail | undefined>
   saveWorkflowGraph(id: string, graph: FlowGraphPayload, name?: string): Promise<WorkflowSummary>
   runWorkflow(id: string): Promise<ExecutionSummary>
+  getQuota(): Promise<QuotaSnapshot>
 } = {
   async listWorkflows() {
     const data = await request<{ items: WorkflowSummary[] }>('/api/v1/workflows')
@@ -106,7 +136,6 @@ export const httpClient: FlowForgeClient & {
   },
 
   async setStarred(id, _starred) {
-    // Starred is not persisted yet; return current summary.
     const wf = await this.getWorkflow(id)
     if (!wf) throw new Error('Workflow not found')
     return wf
@@ -130,5 +159,9 @@ export const httpClient: FlowForgeClient & {
       method: 'POST',
       body: JSON.stringify({ trigger: { source: 'manual', startedAt: new Date().toISOString() } }),
     })
+  },
+
+  async getQuota() {
+    return request<QuotaSnapshot>('/api/v1/me/quota')
   },
 }

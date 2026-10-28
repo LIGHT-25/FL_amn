@@ -15,6 +15,7 @@ import type { NodeDefinition } from "./types.js";
 
 export type { NodeDefinition, NodeExecutionContext, NodeExecutionResult, SafeLogEntry } from "./types.js";
 export { deepInterpolate, interpolate, interpolateJsonTemplate, slugStepKey } from "./interpolate.js";
+export { connectorStrict, demoMode, publishEnabled, resolveSecret, requireSecret, sheetsMock } from "./strict.js";
 export {
   looksLikeGoogleSpreadsheetId,
   loadGoogleServiceAccount,

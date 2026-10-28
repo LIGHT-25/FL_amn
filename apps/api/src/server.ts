@@ -1,16 +1,20 @@
 import Fastify from "fastify";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import { Prisma, prisma } from "@flowforge/db";
 import { validateFlowStructure } from "@flowforge/engine";
 import { listNodeTypes } from "@flowforge/nodes";
 import { flowDefinitionSchema } from "@flowforge/shared";
-import { getDevUserId } from "./devUser.js";
+import { registerAuth } from "./auth/plugin.js";
+import authRoutes from "./auth/routes.js";
 import {
   fromUiStatus,
   parseFlow,
   toSummary,
   type UiWorkflowStatus,
 } from "./mapWorkflow.js";
+import { QuotaError, assertCanActivateSchedule, assertCanCreateWorkflow, assertCanRun, getQuotaSnapshot } from "./quotas.js";
 import { mapExecStatus, mapNodeStatus, runWorkflowExecution } from "./runExecution.js";
 import { startScheduleRunner } from "./scheduleRunner.js";
 
@@ -18,18 +22,45 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
 
-const port = Number(process.env.API_PORT ?? 3001);
+function asString(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
+
+function quotaReply(reply: { status: (code: number) => { send: (body: unknown) => unknown } }, err: unknown) {
+  if (err instanceof QuotaError) {
+    return reply.status(err.statusCode).send({ code: err.code, message: err.message });
+  }
+  throw err;
+}
+
+// Render/Railway inject PORT; local/dev use API_PORT.
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3001);
 
 async function main() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: true });
+
+  const webOrigin = (process.env.WEB_ORIGIN ?? "http://localhost:5174").replace(/\/$/, "");
+  const isProd = (process.env.NODE_ENV ?? "development") === "production";
 
   await app.register(cors, {
-    // Reflect the browser origin in local/dev so PATCH/POST preflights succeed.
-    origin: true,
+    origin: isProd ? webOrigin : true,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   });
+  await app.register(cookie);
+  await app.register(rateLimit, {
+    global: false,
+    addHeaders: {
+      "x-ratelimit-limit": true,
+      "x-ratelimit-remaining": true,
+      "x-ratelimit-reset": true,
+    },
+  });
+  await registerAuth(app);
+  await app.register(authRoutes);
 
   app.get("/health", async () => ({ status: "ok", service: "flowforge-api" }));
 
@@ -47,6 +78,8 @@ async function main() {
   });
 
   app.get("/api/v1/node-types", async () => ({ items: listNodeTypes() }));
+
+  app.get("/api/v1/me/quota", async (req) => getQuotaSnapshot(req.userId));
 
   /** Inspect the Postgres content calendar (Sheets stand-in for Content Pipeline). */
   app.get<{ Params: { spreadsheetId: string }; Querystring: { sheet?: string } }>(
@@ -85,8 +118,8 @@ async function main() {
     },
   );
 
-  app.get("/api/v1/workflows", async () => {
-    const userId = await getDevUserId();
+  app.get("/api/v1/workflows", async (req) => {
+    const userId = req.userId;
     const rows = await prisma.workflow.findMany({
       where: { userId },
       orderBy: { updatedAt: "desc" },
@@ -95,7 +128,12 @@ async function main() {
   });
 
   app.post<{ Body: { name?: string; graph?: unknown } }>("/api/v1/workflows", async (req, reply) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
+    try {
+      await assertCanCreateWorkflow(userId);
+    } catch (err) {
+      return quotaReply(reply, err);
+    }
     const name = (req.body?.name ?? "Untitled workflow").trim() || "Untitled workflow";
     const graphParse = req.body?.graph
       ? flowDefinitionSchema.safeParse(req.body.graph)
@@ -120,7 +158,7 @@ async function main() {
   });
 
   app.get<{ Params: { id: string } }>("/api/v1/workflows/:id", async (req, reply) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
     const workflow = await prisma.workflow.findFirst({
       where: { id: req.params.id, userId },
     });
@@ -137,7 +175,7 @@ async function main() {
     Params: { id: string };
     Body: { name?: string; status?: UiWorkflowStatus; graph?: unknown };
   }>("/api/v1/workflows/:id", async (req, reply) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
     const existing = await prisma.workflow.findFirst({
       where: { id: req.params.id, userId },
     });
@@ -168,6 +206,16 @@ async function main() {
           message: "Hosting requires a Schedule trigger on the canvas.",
         });
       }
+      try {
+        await assertCanActivateSchedule(
+          userId,
+          existing.id,
+          asString(scheduleNode.config.cron, "0 9 * * *"),
+          asString(scheduleNode.config.timezone, "UTC") || "UTC",
+        );
+      } catch (err) {
+        return quotaReply(reply, err);
+      }
       const last = await prisma.execution.findFirst({
         where: { workflowId: existing.id },
         orderBy: { createdAt: "desc" },
@@ -194,7 +242,7 @@ async function main() {
   });
 
   app.delete<{ Params: { id: string } }>("/api/v1/workflows/:id", async (req, reply) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
     const existing = await prisma.workflow.findFirst({
       where: { id: req.params.id, userId },
     });
@@ -206,7 +254,12 @@ async function main() {
   });
 
   app.post<{ Params: { id: string } }>("/api/v1/workflows/:id/duplicate", async (req, reply) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
+    try {
+      await assertCanCreateWorkflow(userId);
+    } catch (err) {
+      return quotaReply(reply, err);
+    }
     const existing = await prisma.workflow.findFirst({
       where: { id: req.params.id, userId },
     });
@@ -227,7 +280,12 @@ async function main() {
   app.post<{ Params: { id: string }; Body: { trigger?: unknown } }>(
     "/api/v1/workflows/:id/run",
     async (req, reply) => {
-      const userId = await getDevUserId();
+      const userId = req.userId;
+      try {
+        await assertCanRun(userId);
+      } catch (err) {
+        return quotaReply(reply, err);
+      }
       const workflow = await prisma.workflow.findFirst({
         where: { id: req.params.id, userId },
       });
@@ -273,7 +331,7 @@ async function main() {
   );
 
   app.get<{ Querystring: { workflowId?: string } }>("/api/v1/executions", async (req) => {
-    const userId = await getDevUserId();
+    const userId = req.userId;
     const rows = await prisma.execution.findMany({
       where: {
         userId,

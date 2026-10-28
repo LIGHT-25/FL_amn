@@ -9,7 +9,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:migrate": "pnpm --filter @flowforge/db migrate",
-    "db:seed": "pnpm --filter @flowforge/db seed",
+    "db:seed": "pnpm --filter @flowforge/db seed:local",
     "db:generate": "pnpm --filter @flowforge/db generate"
   },
   "devDependencies": {

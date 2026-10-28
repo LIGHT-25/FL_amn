@@ -21,6 +21,8 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_URL || 'http://localhost:3001',
         changeOrigin: true,
+        // Keep refresh cookies working through the same-origin Vite proxy.
+        cookieDomainRewrite: 'localhost',
       },
       '/health': {
         target: process.env.VITE_API_URL || 'http://localhost:3001',

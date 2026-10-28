@@ -1,6 +1,7 @@
 import { prisma } from "@flowforge/db";
 import { Cron } from "croner";
 import { parseFlow } from "./mapWorkflow.js";
+import { QuotaError, assertCanRun } from "./quotas.js";
 import { runWorkflowExecution } from "./runExecution.js";
 
 const lastFiredMinute = new Map<string, string>();
@@ -89,30 +90,43 @@ async function tick(log: { info: (o: object, msg?: string) => void; error: (o: o
       startedAt: now.toISOString(),
     };
 
-    void runWorkflowExecution({
-      workflowId: workflow.id,
-      userId: workflow.userId,
-      workflowName: workflow.name,
-      flow,
-      triggerType: "SCHEDULE",
-      trigger,
-      triggerLabel: "Schedule",
-    })
-      .then((result) => {
+    void (async () => {
+      try {
+        await assertCanRun(workflow.userId);
+      } catch (err) {
+        running.delete(workflow.id);
+        if (err instanceof QuotaError) {
+          log.info(
+            { workflowId: workflow.id, code: err.code, message: err.message },
+            "Scheduled run skipped (quota)",
+          );
+          return;
+        }
+        throw err;
+      }
+      try {
+        const result = await runWorkflowExecution({
+          workflowId: workflow.id,
+          userId: workflow.userId,
+          workflowName: workflow.name,
+          flow,
+          triggerType: "SCHEDULE",
+          trigger,
+          triggerLabel: "Schedule",
+        });
         log.info(
           { workflowId: workflow.id, executionId: result.id, status: result.status },
           "Scheduled workflow run finished",
         );
-      })
-      .catch((err) => {
+      } catch (err) {
         log.error(
           { workflowId: workflow.id, err: err instanceof Error ? err.message : String(err) },
           "Scheduled workflow run failed",
         );
-      })
-      .finally(() => {
+      } finally {
         running.delete(workflow.id);
-      });
+      }
+    })();
   }
 }
 

@@ -129,12 +129,12 @@ export const imagesSearchNode: NodeDefinition = {
 
     const apiKey = requireSecret({
       label,
-      value: resolveSecret(ctx.config.credential, envKey, [
-        "",
-        "pixabay-key",
-        "pexels-key",
-        "unsplash-key",
-      ]),
+      value: resolveSecret(
+        ctx.config.credential,
+        envKey,
+        ["", "pixabay-key", "pexels-key", "unsplash-key"],
+        ctx.env,
+      ),
       env: ctx.env,
       hint,
     });

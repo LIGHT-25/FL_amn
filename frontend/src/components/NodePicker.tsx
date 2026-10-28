@@ -11,7 +11,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { plugins, type PluginDefinition } from '../plugins/registry'
+import { EXECUTABLE_PLUGIN_TYPES } from '../plugins/executable'
+import { plugins as allPlugins, type PluginDefinition } from '../plugins/registry'
 import {
   SERVICE_ORDER,
   chipOf,
@@ -24,7 +25,9 @@ import { Badge } from '@/components/ui/badge'
 import { MOD_KEY } from '@/lib/shortcut'
 import { cn } from '@/lib/utils'
 
-/* ---------- Catalog ---------- */
+/* ---------- Catalog (executable nodes only — hide NODE_NOT_IMPLEMENTED stubs) ---------- */
+
+const plugins = allPlugins.filter((p) => EXECUTABLE_PLUGIN_TYPES.has(p.type))
 
 const SERVICES: Array<ServiceInfo & { plugins: PluginDefinition[] }> = (() => {
   const groups = new Map<string, ServiceInfo & { plugins: PluginDefinition[] }>()
@@ -70,10 +73,10 @@ const TRIGGERS = plugins.filter((p) => p.kind === 'trigger')
 const FLOW_CONTROLS = plugins.filter((p) => p.category === 'Logic' || p.kind === 'end')
 /** Plain utilities: HTTP, code, transform. */
 const UTILITIES = plugins.filter((p) => p.category === 'Core' && p.kind !== 'end')
-const HIGHLIGHTS = ['logic.router', 'ai.gemini', 'ai.ollama', 'core.code']
+const HIGHLIGHTS = ['ai.gemini', 'ai.ollama', 'app.sheets.read', 'app.tavily.search']
   .map((t) => plugins.find((p) => p.type === t))
   .filter((p): p is PluginDefinition => Boolean(p))
-const POPULAR = ['sheets', 'gmail', 'slack', 'notion', 'postgres', 'baserow']
+const POPULAR = ['sheets', 'slack', 'facebook', 'tavily', 'unsplash', 'gemini']
   .map((k) => (serviceMap.get(k) ?? null))
   .filter((s): s is ServiceInfo & { plugins: PluginDefinition[] } => Boolean(s))
 

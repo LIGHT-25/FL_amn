@@ -12,8 +12,8 @@ import Debugging from './pages/Debugging.tsx';
 import Landing from './pages/Landing.tsx';
 import ProjectDashboard from './pages/ProjectDashboard.tsx';
 import Explore from './pages/Explore.tsx';
-import PlaceholderPage from './pages/PlaceholderPage.tsx';
 import Search from './pages/Search.tsx';
+import Settings from './pages/Settings.tsx';
 import AppShell from './shell/AppShell.tsx';
 
 createRoot(document.getElementById('root')!).render(
@@ -36,7 +36,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="explore" element={<Explore />} />
             <Route path="search" element={<Search />} />
             <Route path="debugging" element={<Debugging />} />
-            <Route path="settings" element={<PlaceholderPage title="Settings" copy="Workspace settings arrive with the auth backend." />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="editor" element={<Navigate to="/app" replace />} />
             <Route path="editor/:workflowId" element={<App />} />
           </Route>
